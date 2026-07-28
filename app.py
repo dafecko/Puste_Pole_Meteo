@@ -25,16 +25,11 @@ def load_data():
 
   # Hľadanie stĺpcov pre dátum a čas
   col_datum = next(
-      (
-          c
-          for c in df.columns
-          if "dátum" in c.lower() or "datum" in c.lower()
-      ),
+      (c for c in df.columns if "dátum" in c.lower() or "datum" in c.lower()),
       None,
   )
   col_cas = next(
-      (c for c in df.columns if "čas" in c.lower() or "cas" in c.lower()),
-      None,
+      (c for c in df.columns if "čas" in c.lower() or "cas" in c.lower()), None
   )
 
   if not col_datum or not col_cas:
@@ -60,8 +55,42 @@ def load_data():
 # --- HLAVNÁ STRÁNKA ---
 st.title("🌤️ Meteorologický Web Dashboard - Pusté Pole")
 
-# 1. SEKCIA: AKTUÁLNE ÚDAJE
+# 1. SEKCIA: AKTUÁLNE ÚDAJE (Moderné ciferníky / Gauges)
 st.subheader("⚡ Aktuálny stav počasia")
+
+
+def create_gauge(val, title, max_val, unit, min_val=0):
+  try:
+    numeric_val = float(val)
+  except:
+    numeric_val = 0.0
+
+  fig = go.Figure(
+      go.Indicator(
+          mode="gauge+number",
+          value=numeric_val,
+          title={
+              "text": f"{title} ({unit})" if unit else title,
+              "font": {"size": 14, "color": "#31333F"},
+          },
+          number={"font": {"size": 22}},
+          gauge={
+              "axis": {
+                  "range": [min_val, max_val],
+                  "tickwidth": 1,
+                  "tickcolor": "gray",
+              },
+              "bar": {"color": "#0284c7"},
+              "bgcolor": "#f8fafc",
+              "borderwidth": 1,
+              "bordercolor": "#cbd5e1",
+          },
+      )
+  )
+  fig.update_layout(height=180, margin=dict(l=10, r=10, t=30, b=10))
+  return fig
+
+
 if os.path.exists(CSV_AKTUALNE):
   try:
     try:
@@ -79,7 +108,6 @@ if os.path.exists(CSV_AKTUALNE):
       col_a, col_b, col_c, col_d, col_e = st.columns(5)
 
 
-      # Pomocná funkcia na bezpečné vyťahovanie hodnôt
       def get_val(df_row, keywords):
         for k in keywords:
           for col in df_row.index:
@@ -98,22 +126,31 @@ if os.path.exists(CSV_AKTUALNE):
       r_val = get_val(akt, ["zrážky", "zrazky", "rain"])
       uv_val = get_val(akt, ["uv", "uvi"])
 
-      col_a.metric(
-          "Teplota",
-          f"{t_val} °C" if isinstance(t_val, (int, float)) else f"{t_val}",
-      )
-      col_b.metric(
-          "Vlhkosť", f"{h_val} %" if isinstance(h_val, (int, float)) else f"{h_val}"
-      )
-      col_c.metric(
-          "Vietor",
-          f"{w_val} km/h" if isinstance(w_val, (int, float)) else f"{w_val}",
-      )
-      col_d.metric(
-          "Zrážky",
-          f"{r_val} mm" if isinstance(r_val, (int, float)) else f"{r_val}",
-      )
-      col_e.metric("UV index", f"{uv_val}")
+      with col_a:
+        st.plotly_chart(
+            create_gauge(t_val, "Teplota", 50, "°C", min_val=-20),
+            use_container_width=True,
+        )
+      with col_b:
+        st.plotly_chart(
+            create_gauge(h_val, "Vlhkosť", 100, "%", min_val=0),
+            use_container_width=True,
+        )
+      with col_c:
+        st.plotly_chart(
+            create_gauge(w_val, "Vietor", 50, "km/h", min_val=0),
+            use_container_width=True,
+        )
+      with col_d:
+        st.plotly_chart(
+            create_gauge(r_val, "Zrážky", 50, "mm", min_val=0),
+            use_container_width=True,
+        )
+      with col_e:
+        st.plotly_chart(
+            create_gauge(uv_val, "UV index", 12, "", min_val=0),
+            use_container_width=True,
+        )
     else:
       st.warning("Súbor 'meteo_aktualne.csv' je prázdny.")
   except Exception as e:
