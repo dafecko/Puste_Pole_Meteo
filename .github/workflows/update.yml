@@ -2,7 +2,7 @@ name: Automatický zber meteo dát
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Spustí sa každú jednu hodinu (môžete upravením zmeniť)
+    - cron: '*/15 * * * *'  # Spustí sa každých 15 minút (môžete upravením zmeniť)
   workflow_dispatch:      # Umožňuje spustiť skript aj manuálne jedným klikom na webe GitHubu
 
 jobs:
