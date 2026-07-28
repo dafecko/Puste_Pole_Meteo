@@ -1,4 +1,5 @@
 import datetime
+from zoneinfo import ZoneInfo
 from playwright.sync_api import sync_playwright
 import pandas as pd
 
@@ -10,15 +11,11 @@ def scrape_weather():
   teplota, vlhkost, zrazky, uv_index, vietor = "0", "0", "0", "0", "0"
 
   with sync_playwright() as p:
-    # headless=True zabezpečí, že sa okno prehliadača nebude otvárať na obrazovke
     browser = p.chromium.launch(headless=True)
     page = browser.new_page()
     page.goto(url)
-
-    # Počkáme 8 sekúnd na načítanie stránky
     page.wait_for_timeout(8000)
 
-    # Odstránime prekážajúce okno cookies/consent
     try:
       page.evaluate(
           "const overlay = document.querySelector('.fc-consent-root'); if"
@@ -27,7 +24,6 @@ def scrape_weather():
     except Exception:
       pass
 
-    # 1. Zber údajov zo záložky Current (Teplota, Vlhkosť, Zrážky, UV index)
     try:
       el = page.locator("#temp .temp-value-text")
       if el.count() > 0:
@@ -56,11 +52,9 @@ def scrape_weather():
     except Exception as e:
       print(f"UV index chyba: {e}")
 
-    # 2. Prechod na záložku Wind a zber hodnoty vetra
     try:
       page.locator("a[href*='wind']").first.click()
       page.wait_for_timeout(5000)
-
       el_wind = page.locator("#wspd .wspd-value-text")
       if el_wind.count() > 0:
         vietor = el_wind.first.text_content()
@@ -69,7 +63,6 @@ def scrape_weather():
 
     browser.close()
 
-  # Funkcia na očistenie textu na čisté desatinné číslo
   def clean_val(val):
     if not val:
       return 0.0
@@ -84,11 +77,12 @@ def scrape_weather():
   r_val = clean_val(zrazky)
   uv_val = clean_val(uv_index)
 
-  # Prepočet vetra z m/s na km/h (* 3.6)
   w_val_ms = clean_val(vietor)
   w_val = round(w_val_ms * 3.6, 1)
 
-  teraz = datetime.datetime.now()
+  # Vynútenie slovenského času (poradí si s letným/zimným časom automaticky)
+  teraz = datetime.datetime.now(ZoneInfo("Europe/Bratislava"))
+
   data = [{
       "Dátum": teraz.strftime("%d.%m.%Y"),
       "Čas": teraz.strftime("%H:%M"),
@@ -100,7 +94,6 @@ def scrape_weather():
   }]
 
   df = pd.DataFrame(data)
-  # Uloženie do CSV s prepísaním starého súboru
   df.to_csv(
       "meteo_aktualne.csv", sep=";", decimal=",", index=False, encoding="utf-8-sig"
   )
