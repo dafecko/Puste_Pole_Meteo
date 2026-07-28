@@ -1,8 +1,8 @@
-name: Aktualizácia počasia
+name: Denný meteo zápis
 
 on:
   schedule:
-    - cron: '*/15 * * * *'  # Každých 15 minút
+    - cron: '57 23 * * *'  # Spustí sa každý deň presne o 23:57
   workflow_dispatch:
 
 jobs:
@@ -20,13 +20,13 @@ jobs:
       - name: Inštalácia knižníc
         run: pip install -r requirements.txt
 
-      - name: Spustenie zberu dát
+      - name: Spustenie denného zberu
         run: |
-          python update_weather.py
+          python meteo_zber_v2.py
 
       - name: Automatické uloženie a odoslanie zmien na GitHub
         run: |
           git config --global user.name "GitHub Actions Bot"
           git config --global user.email "actions@github.com"
-          git add meteo_aktualne.csv
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Automatická aktualizácia dát" && git push)
+          git add meteo_puste_pole_v2.csv
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Denný meteo zápis o 23:57" && git push)
