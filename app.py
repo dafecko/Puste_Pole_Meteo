@@ -246,6 +246,7 @@ else:
             orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
         ),
     )
+    fig_temp.update_xaxes(hoverformat="%d.%m.%Y")
     st.plotly_chart(fig_temp, use_container_width=True)
 
     # 2. GRAF: VIETOR
@@ -287,6 +288,7 @@ else:
             orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
         ),
     )
+    fig_wind.update_xaxes(hoverformat="%d.%m.%Y")
     st.plotly_chart(fig_wind, use_container_width=True)
 
     # 3. GRAF: ZRÁŽKY
@@ -311,6 +313,7 @@ else:
             orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
         ),
     )
+    fig_rain.update_xaxes(hoverformat="%d.%m.%Y")
     st.plotly_chart(fig_rain, use_container_width=True)
 
     # Rozbaľovacia tabuľka bez času a DateTime stĺpca
