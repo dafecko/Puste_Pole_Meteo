@@ -19,8 +19,10 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Inštalácia knižníc
-        run: pip install pandas requests
+      - name: Inštalácia knižníc a prehliadača pre Playwright
+        run: |
+          pip install -r requirements.txt
+          playwright install
 
       - name: Spustenie denného zberu
         run: python meteo_zber_v2.py
