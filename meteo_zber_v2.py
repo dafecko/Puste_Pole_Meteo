@@ -1,6 +1,7 @@
 import csv
 import os
 from datetime import datetime
+from zoneinfo import ZoneInfo
 import requests
 import subprocess
 
@@ -34,12 +35,14 @@ def to_sk_num(value, scale=1.0, decimals=1):
 
 
 def main():
-  now = datetime.now()
+  # Použitie slovenského času namiesto UTC servera
+  now = datetime.now(ZoneInfo("Europe/Bratislava"))
   datum_str = now.strftime("%d.%m.%Y")
   cas_str = now.strftime("%H:%M")
 
   print(
-      f"[{datum_str} {cas_str}] Pripájam sa na Weathercloud pre denný export..."
+      f"[{datum_str} {cas_str}] Pripájam sa na Weathercloud pre denný"
+      " export..."
   )
 
   session = requests.Session()
@@ -78,7 +81,11 @@ def main():
   temp_min = data_stats.get("temp_day_min")
   temp_avg = data_val.get("temp")
 
-  # Vietor - rozšírené hľadanie kľúčov pre max/avg/min
+  # Vlhkosť a tlak
+  hum_avg = data_val.get("hum")
+  bar_avg = data_val.get("bar")
+
+  # Vietor
   wind_max = (
       data_stats.get("wspd_day_max")
       or data_stats.get("wgust")
@@ -90,37 +97,27 @@ def main():
       or data_val.get("wspd")
       or data_stats.get("wspdavg_current")
   )
-  wind_min = data_stats.get("wspd_day_min") or data_stats.get("wspd_min")
 
-  # Zrážky
+  # Zrážky a UV index
   rain_total = (
       data_stats.get("rain_day_total")
       or data_stats.get("rain_day_max")
       or data_val.get("rain")
   )
+  uv_val = data_val.get("uvi")
 
   row = [
       datum_str,
       cas_str,
       to_sk_num(temp_max),
-      to_sk_num(temp_avg),
       to_sk_num(temp_min),
+      to_sk_num(temp_avg),
+      to_sk_num(hum_avg),
+      to_sk_num(bar_avg),
       to_sk_num(wind_max, scale=MS_TO_KMH),
       to_sk_num(wind_avg, scale=MS_TO_KMH),
-      to_sk_num(wind_min, scale=MS_TO_KMH),
       to_sk_num(rain_total),
-  ]
-
-  csv_headers = [
-      "Dátum",
-      "Čas",
-      "Teplota Max (°C)",
-      "Teplota Priemer (°C)",
-      "Teplota Min (°C)",
-      "Vietor Max (km/h)",
-      "Vietor Priemer (km/h)",
-      "Vietor Min (km/h)",
-      "Zrážky (mm)",
+      to_sk_num(uv_val),
   ]
 
   file_exists = os.path.exists(CSV_FILE)
@@ -128,34 +125,23 @@ def main():
   with open(CSV_FILE, mode="a", newline="", encoding="utf-8-sig") as f:
     writer = csv.writer(f, delimiter=";")
     if not file_exists:
-      writer.writerow(csv_headers)
-      print(f"📄 Vytvorený nový CSV súbor: {CSV_FILE}")
-
+      header = [
+          "Dátum",
+          "Čas",
+          "Teplota Max (°C)",
+          "Teplota Min (°C)",
+          "Teplota Akt/Avg (°C)",
+          "Vlhkosť (%)",
+          "Tlak (hPa)",
+          "Vietor Max (km/h)",
+          "Vietor Avg (km/h)",
+          "Zrážky (mm)",
+          "UV index",
+      ]
+      writer.writerow(header)
     writer.writerow(row)
 
-  print("\n----------------------------------------")
-  print(f"✅ DENNÝ ZÁPIS HOTOVÝ PRE {datum_str} {cas_str}")
-  print(
-      f"🌡️ Denné Max / Min: {to_sk_num(temp_max)} °C /"
-      f" {to_sk_num(temp_min)} °C"
-  )
-  print(
-      f"💨 Vietor Max / Avg: {to_sk_num(wind_max, scale=MS_TO_KMH)} km/h /"
-      f" {to_sk_num(wind_avg, scale=MS_TO_KMH)} km/h"
-  )
-  print(f"🌧️ Celkové zrážky za deň: {to_sk_num(rain_total)} mm")
-  print("----------------------------------------\n")
-
-  # Automatický push na GitHub
-  try:
-    subprocess.run(["git", "add", "meteo_puste_pole_v2.csv"], check=True)
-    subprocess.run(
-        ["git", "commit", "-m", "Automated daily meteo update"], check=True
-    )
-    subprocess.run(["git", "push"], check=True)
-    print("Dáta boli úspešne odoslané na GitHub!")
-  except Exception as e:
-    print(f"Nepodarilo sa odoslať dáta na GitHub: {e}")
+  print(f"✅ Denný zber úspešne uložený do {CSV_FILE}")
 
 
 if __name__ == "__main__":
