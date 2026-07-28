@@ -2,7 +2,6 @@ import os
 import pandas as pd
 import streamlit as st
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 
 # Nastavenie stránky na šírku
 st.set_page_config(page_title="Meteo Web Dashboard - Pusté Pole", layout="wide")
@@ -106,50 +105,61 @@ else:
 
         st.markdown("---")
 
-        # Vykreslenie interaktívnych Plotly grafov
-        fig = make_subplots(
-            rows=3, cols=1,
-            shared_xaxes=True,
-            vertical_spacing=0.08,
-            subplot_titles=(
-                "Teplota (°C)",
-                "Rýchlosť vetra (km/h)",
-                "Zrážky (mm)"
-            )
-        )
-
+        # 1. GRAF: TEPLOTY
+        fig_temp = go.Figure()
         if t_max:
-            fig.add_trace(go.Scatter(x=df_filtered['DateTime'], y=df_filtered[t_max], name="Teplota Max", line=dict(color='#d9534f', width=2)), row=1, col=1)
+            fig_temp.add_trace(go.Scatter(x=df_filtered['DateTime'], y=df_filtered[t_max], name="Teplota Max", line=dict(color='#d9534f', width=2)))
         if t_avg:
-            fig.add_trace(go.Scatter(x=df_filtered['DateTime'], y=df_filtered[t_avg], name="Teplota Priemer", line=dict(color='#f0ad4e', width=2)), row=1, col=1)
+            fig_temp.add_trace(go.Scatter(x=df_filtered['DateTime'], y=df_filtered[t_avg], name="Teplota Priemer", line=dict(color='#f0ad4e', width=2)))
         if t_min:
-            fig.add_trace(go.Scatter(x=df_filtered['DateTime'], y=df_filtered[t_min], name="Teplota Min", line=dict(color='#5bc0de', width=2)), row=1, col=1)
+            fig_temp.add_trace(go.Scatter(x=df_filtered['DateTime'], y=df_filtered[t_min], name="Teplota Min", line=dict(color='#5bc0de', width=2)))
 
-        if w_max:
-            fig.add_trace(go.Scatter(x=df_filtered['DateTime'], y=df_filtered[w_max], name="Vietor Max", line=dict(color='#8e44ad', width=2)), row=2, col=1)
-        if w_avg:
-            fig.add_trace(go.Scatter(x=df_filtered['DateTime'], y=df_filtered[w_avg], name="Vietor Priemer", line=dict(color='#27ae60', width=2)), row=2, col=1)
-        if w_min:
-            fig.add_trace(go.Scatter(x=df_filtered['DateTime'], y=df_filtered[w_min], name="Vietor Min", line=dict(color='#16a085', width=2)), row=2, col=1)
-
-        # Stĺpcový graf zrážok s vynútenou šírkou stĺpca (43200000 ms = 12 hodín, aby boli dobre viditeľné)
-        if r_col:
-            fig.add_trace(go.Bar(
-                x=df_filtered['DateTime'], 
-                y=df_filtered[r_col], 
-                name="Zrážky (mm)", 
-                marker_color='#3498db',
-                width=43200000 
-            ), row=3, col=1)
-
-        fig.update_layout(
-            height=800,
+        fig_temp.update_layout(
+            title="Teplota (°C)",
+            height=320,
             template="plotly_white",
             hovermode="x unified",
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
+        st.plotly_chart(fig_temp, use_container_width=True)
 
-        st.plotly_chart(fig, use_container_width=True)
+        # 2. GRAF: VIETOR
+        fig_wind = go.Figure()
+        if w_max:
+            fig_wind.add_trace(go.Scatter(x=df_filtered['DateTime'], y=df_filtered[w_max], name="Vietor Max", line=dict(color='#8e44ad', width=2)))
+        if w_avg:
+            fig_wind.add_trace(go.Scatter(x=df_filtered['DateTime'], y=df_filtered[w_avg], name="Vietor Priemer", line=dict(color='#27ae60', width=2)))
+        if w_min:
+            fig_wind.add_trace(go.Scatter(x=df_filtered['DateTime'], y=df_filtered[w_min], name="Vietor Min", line=dict(color='#16a085', width=2)))
+
+        fig_wind.update_layout(
+            title="Rýchlosť vetra (km/h)",
+            height=320,
+            template="plotly_white",
+            hovermode="x unified",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        st.plotly_chart(fig_wind, use_container_width=True)
+
+        # 3. GRAF: ZRÁŽKY
+        fig_rain = go.Figure()
+        if r_col:
+            fig_rain.add_trace(go.Bar(
+                x=df_filtered['DateTime'], 
+                y=df_filtered[r_col], 
+                name="Zrážky (mm)", 
+                marker_color='#3498db',
+                width=21600000  
+            ))
+
+        fig_rain.update_layout(
+            title="Zrážky (mm)",
+            height=320,
+            template="plotly_white",
+            hovermode="x unified",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        st.plotly_chart(fig_rain, use_container_width=True)
 
         # Rozbaľovacia tabuľka s podrobnými dátami
         with st.expander("📋 Zobraziť zdrojovú tabuľku dát pre vybrané obdobie"):
