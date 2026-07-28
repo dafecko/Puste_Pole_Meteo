@@ -1,19 +1,29 @@
 import os
 import pandas as pd
-import streamlit as st
 import plotly.graph_objects as go
+import streamlit as st
 
 # Nastavenie stránky na šírku
 st.set_page_config(page_title="Meteo Web Dashboard - Pusté Pole", layout="wide")
 
 CSV_FILE = "meteo_puste_pole_v2.csv"
+CSV_AKTUALNE = "meteo_aktualne.csv"
 
 
 @st.cache_data
 def load_data():
   if not os.path.exists(CSV_FILE):
     return None
-  df = pd.read_csv(CSV_FILE, sep=";", decimal=",")
+  try:
+    df = pd.read_csv(CSV_FILE, sep=";", decimal=",")
+  except Exception:
+    try:
+      df = pd.read_csv(CSV_FILE, sep=",", decimal=".")
+    except Exception as e:
+      st.error(f"Nepodarilo sa načítať historický CSV súbor: {e}")
+      return None
+
+  # Hľadanie stĺpcov pre dátum a čas
   col_datum = next(
       (
           c
@@ -23,7 +33,8 @@ def load_data():
       None,
   )
   col_cas = next(
-      (c for c in df.columns if "čas" in c.lower() or "cas" in c.lower()), None
+      (c for c in df.columns if "čas" in c.lower() or "cas" in c.lower()),
+      None,
   )
 
   if not col_datum or not col_cas:
@@ -46,13 +57,78 @@ def load_data():
   return df
 
 
+# --- HLAVNÁ STRÁNKA ---
+st.title("🌤️ Meteorologický Web Dashboard - Pusté Pole")
+
+# 1. SEKCIA: AKTUÁLNE ÚDAJE
+st.subheader("⚡ Aktuálny stav počasia")
+if os.path.exists(CSV_AKTUALNE):
+  try:
+    try:
+      df_akt = pd.read_csv(CSV_AKTUALNE, sep=";", decimal=",")
+    except:
+      df_akt = pd.read_csv(CSV_AKTUALNE, sep=",", decimal=".")
+
+    if not df_akt.empty:
+      akt = df_akt.iloc[0]
+      datum_str = akt.get("Dátum", akt.get("datum", ""))
+      cas_str = akt.get("Čas", akt.get("cas", ""))
+
+      st.caption(f"📅 Posledná aktualizácia zo stanice: {datum_str} o {cas_str}")
+
+      col_a, col_b, col_c, col_d, col_e = st.columns(5)
+
+
+      # Pomocná funkcia na bezpečné vyťahovanie hodnôt
+      def get_val(df_row, keywords):
+        for k in keywords:
+          for col in df_row.index:
+            if k.lower() in col.lower():
+              val = df_row[col]
+              try:
+                return float(str(val).replace(",", "."))
+              except:
+                return val
+        return 0.0
+
+
+      t_val = get_val(akt, ["teplota", "temp"])
+      h_val = get_val(akt, ["vlhkosť", "vlhkost", "hum"])
+      w_val = get_val(akt, ["vietor", "wind", "wspd"])
+      r_val = get_val(akt, ["zrážky", "zrazky", "rain"])
+      uv_val = get_val(akt, ["uv", "uvi"])
+
+      col_a.metric(
+          "Teplota",
+          f"{t_val} °C" if isinstance(t_val, (int, float)) else f"{t_val}",
+      )
+      col_b.metric(
+          "Vlhkosť", f"{h_val} %" if isinstance(h_val, (int, float)) else f"{h_val}"
+      )
+      col_c.metric(
+          "Vietor",
+          f"{w_val} km/h" if isinstance(w_val, (int, float)) else f"{w_val}",
+      )
+      col_d.metric(
+          "Zrážky",
+          f"{r_val} mm" if isinstance(r_val, (int, float)) else f"{r_val}",
+      )
+      col_e.metric("UV index", f"{uv_val}")
+    else:
+      st.warning("Súbor 'meteo_aktualne.csv' je prázdny.")
+  except Exception as e:
+    st.error(f"Chyba pri čítaní 'meteo_aktualne.csv': {e}")
+else:
+  st.info("Súbor 'meteo_aktualne.csv' sa zatiaľ nenašiel v repozitári.")
+
+st.markdown("---")
+
+# 2. NAČÍTANIE HISTORICKÝCH DÁT PRE GRAFY
 df = load_data()
 
 if df is None or df.empty:
-  st.error(f"Súbor '{CSV_FILE}' nebol na ploche nájdený alebo je prázdny!")
+  st.warning(f"⚠️ Historický súbor '{CSV_FILE}' nebol nájdený alebo je prázdny.")
 else:
-  st.title("🌤️ Meteorologický Web Dashboard - Pusté Pole")
-
   # Bočný panel (Sidebar) pre výber obdobia
   st.sidebar.header("⚙️ Ovládací panel")
   volba = st.sidebar.radio(
@@ -112,7 +188,7 @@ else:
   if df_filtered.empty:
     st.warning("⚠️ Pre zvolené obdobie sa nenašli žiadne dáta.")
   else:
-    # Identifikácia stĺpcov
+    # Identifikácia stĺpcov pre grafy
     t_max = next(
         (
             c
@@ -198,12 +274,12 @@ else:
         else 0
     )
 
-    # Rýchle KPI karty na vrchu webu
+    # KPI karty pre vybrané obdobie
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("🔴 Max Teplota", f"{max_temp:.1f} °C")
-    col2.metric("🟠 Priemerná Teplota", f"{avg_temp:.1f} °C")
-    col3.metric("🟣 Max Vietor", f"{max_wind:.1f} km/h")
-    col4.metric("🔵 Celkové Zrážky", f"{total_rain:.1f} mm")
+    col1.metric("🔴 Max Teplota (Obdobie)", f"{max_temp:.1f} °C")
+    col2.metric("🟠 Priemerná Teplota (Obdobie)", f"{avg_temp:.1f} °C")
+    col3.metric("🟣 Max Vietor (Obdobie)", f"{max_wind:.1f} km/h")
+    col4.metric("🔵 Celkové Zrážky (Obdobie)", f"{total_rain:.1f} mm")
 
     st.markdown("---")
 
@@ -316,10 +392,14 @@ else:
     fig_rain.update_xaxes(hoverformat="%d.%m.%Y")
     st.plotly_chart(fig_rain, use_container_width=True)
 
-    # Rozbaľovacia tabuľka bez času a DateTime stĺpca
+    # Rozbaľovacia tabuľka
     with st.expander("📋 Zobraziť zdrojovú tabuľku dát pre vybrané obdobie"):
       col_cas = next(
-          (c for c in df_filtered.columns if "čas" in c.lower() or "cas" in c.lower()),
+          (
+              c
+              for c in df_filtered.columns
+              if "čas" in c.lower() or "cas" in c.lower()
+          ),
           None,
       )
       cols_to_hide = [col_cas, "DateTime"] if col_cas else ["DateTime"]
