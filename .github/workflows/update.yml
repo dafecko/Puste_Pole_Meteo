@@ -2,12 +2,14 @@ name: Aktualizácia počasia
 
 on:
   schedule:
-    - cron: '*/15 * * * *'  # Každých 15 minút
+    - cron: '*/15 * * * *' # Každých 15 minút
   workflow_dispatch:
 
 jobs:
-  run-python:
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Stiahnutie repozitára
         uses: actions/checkout@v4
@@ -17,16 +19,18 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Inštalácia knižníc
-        run: pip install -r requirements.txt
+      - name: Inštalácia knižníc a prehliadača pre Playwright
+        run: |
+          pip install -r requirements.txt
+          playwright install
 
       - name: Spustenie zberu dát
-        run: |
-          python update_weather.py
+        run: python update_weather.py
 
-      - name: Automatické uloženie a odoslanie zmien na GitHub
+      - name: Automatické uloženie a odoslanie zmien
         run: |
-          git config --global user.name "GitHub Actions Bot"
-          git config --global user.email "actions@github.com"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add meteo_aktualne.csv
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Automatická aktualizácia dát" && git push)
+          git commit -m "Auto aktualizácia meteo_aktualne.csv" || echo "Žiadne zmeny"
+          git push
