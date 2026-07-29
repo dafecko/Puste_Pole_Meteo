@@ -578,7 +578,7 @@ if os.path.exists(CSV_AKTUALNE):
                     <div>
                         <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">TEPLOTA</div>
                         <div style="font-size: 1.1em; font-weight: bold; color: #2c3e50;">{t_val:.1f} °C</div>
-                        <div style="font-size: 0.75em; color: #7f8c8d;">Pocitova: {pocitova_val:.1f} °C</div>
+                        <div style="font-size: 0.75em; color: #7f8c8d;">Pocitová: {pocitova_val:.1f} °C</div>
                     </div>
                     <div>
                         <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">TLAK</div>
@@ -1048,15 +1048,17 @@ if df is not None and not df.empty:
     if w_max_col:
       fig_wind = go.Figure()
       fig_wind.add_trace(
-          go.Bar(
+          go.Scatter(
               x=df_filtered["DateTime"],
               y=df_filtered[w_max_col],
-              name="Rýchlosť vetra",
-              marker_color="#f39c12",
+              name="Max Rýchlosť vetra",
+              line=dict(color="#f39c12", width=2),
           )
       )
       fig_wind.update_layout(
-          title="💨 Rýchlosť vetra v čase", height=280, template="plotly_white"
+          title="💨 Maximálna rýchlosť vetra v čase",
+          height=280,
+          template="plotly_white",
       )
       st.plotly_chart(fig_wind, use_container_width=True)
 
