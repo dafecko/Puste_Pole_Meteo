@@ -972,6 +972,16 @@ with tab_historia:
       if view_mode == "📈 Grafy":
         gcol1, gcol2 = st.columns(2)
 
+        # Optimalizácia pre mobilné zariadenia (legenda pod grafom, skrytý toolbar)
+        chart_config = {"displayModeBar": False}
+        layout_updates = dict(
+            height=320,
+            margin=dict(l=10, r=10, t=40, b=10),
+            legend=dict(
+                orientation="h", yanchor="bottom", y=-0.4, xanchor="center", x=0.5
+            ),
+        )
+
         with gcol1:
           fig_temp = go.Figure()
           if t_max_col:
@@ -992,13 +1002,13 @@ with tab_historia:
                     line=dict(color="#337ab7", width=2),
                 )
             )
-          fig_temp.update_layout(
-              title="🌡️ Vývoj teploty v čase",
-              height=280,
-              template="plotly_white",
-              margin=dict(l=20, r=20, t=40, b=20),
+          fig_temp.update_layout(title="🌡️ Vývoj teploty v čase", **layout_updates)
+          st.plotly_chart(
+              fig_temp,
+              use_container_width=True,
+              theme="streamlit",
+              config=chart_config,
           )
-          st.plotly_chart(fig_temp, use_container_width=True)
 
           if r_col:
             fig_rain = go.Figure()
@@ -1011,12 +1021,14 @@ with tab_historia:
                 )
             )
             fig_rain.update_layout(
-                title="🌧️ Úhrn zrážok v čase",
-                height=280,
-                template="plotly_white",
-                margin=dict(l=20, r=20, t=40, b=20),
+                title="🌧️ Úhrn zrážok v čase", **layout_updates
             )
-            st.plotly_chart(fig_rain, use_container_width=True)
+            st.plotly_chart(
+                fig_rain,
+                use_container_width=True,
+                theme="streamlit",
+                config=chart_config,
+            )
 
         with gcol2:
           if w_max_col:
@@ -1030,12 +1042,14 @@ with tab_historia:
                 )
             )
             fig_wind.update_layout(
-                title="💨 Maximálna rýchlosť vetra",
-                height=280,
-                template="plotly_white",
-                margin=dict(l=20, r=20, t=40, b=20),
+                title="💨 Maximálna rýchlosť vetra", **layout_updates
             )
-            st.plotly_chart(fig_wind, use_container_width=True)
+            st.plotly_chart(
+                fig_wind,
+                use_container_width=True,
+                theme="streamlit",
+                config=chart_config,
+            )
 
           if h_col:
             fig_hum = go.Figure()
@@ -1048,12 +1062,14 @@ with tab_historia:
                 )
             )
             fig_hum.update_layout(
-                title="💧 Vývoj vlhkosti vzduchu",
-                height=280,
-                template="plotly_white",
-                margin=dict(l=20, r=20, t=40, b=20),
+                title="💧 Vývoj vlhkosti vzduchu", **layout_updates
             )
-            st.plotly_chart(fig_hum, use_container_width=True)
+            st.plotly_chart(
+                fig_hum,
+                use_container_width=True,
+                theme="streamlit",
+                config=chart_config,
+            )
       else:
         st.subheader("📋 Podrobná tabuľka dát")
         df_table = df_filtered.sort_values("DateTime", ascending=False).copy()
