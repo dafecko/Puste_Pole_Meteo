@@ -105,10 +105,14 @@ def load_data():
   if not os.path.exists(CSV_FILE):
     return None
   try:
-    df = pd.read_csv(CSV_FILE, sep=";", decimal=",")
+    df = pd.read_csv(
+        CSV_FILE, sep=";", decimal=",", on_bad_lines="skip", engine="python"
+    )
   except Exception:
     try:
-      df = pd.read_csv(CSV_FILE, sep=",", decimal=".")
+      df = pd.read_csv(
+          CSV_FILE, sep=",", decimal=".", on_bad_lines="skip", engine="python"
+      )
     except Exception as e:
       st.error(f"Nepodarilo sa načítať historický CSV súbor: {e}")
       return None
@@ -143,15 +147,19 @@ def load_data():
 # --- HLAVNÁ STRÁNKA ---
 st.title("🌤️ Meteorologický Web Dashboard - Pusté Pole")
 
-# 1. SEKCIA: AKTUÁLNE ÚDAJE (pomocou HTML/CSS kariet, teplomerov a ciferníkov)
+# 1. SEKCIA: AKTUÁLNE ÚDAJE
 st.subheader("⚡ Aktuálny stav počasia")
 
 if os.path.exists(CSV_AKTUALNE):
   try:
     try:
-      df_akt = pd.read_csv(CSV_AKTUALNE, sep=";", decimal=",")
+      df_akt = pd.read_csv(
+          CSV_AKTUALNE, sep=";", decimal=",", on_bad_lines="skip"
+      )
     except:
-      df_akt = pd.read_csv(CSV_AKTUALNE, sep=",", decimal=".")
+      df_akt = pd.read_csv(
+          CSV_AKTUALNE, sep=",", decimal=".", on_bad_lines="skip"
+      )
 
     if not df_akt.empty:
       akt = df_akt.iloc[0]
@@ -177,16 +185,11 @@ if os.path.exists(CSV_AKTUALNE):
       r_val = get_val(akt, ["zrážky", "zrazky", "rain"])
       uv_val = get_val(akt, ["uv", "uvi"])
 
-      # Výpočty pre grafické prvky (rozsahy a uhly)
-      # Teplota: rozsah -20 °C až +50 °C (celkovo 70 stupňov)
+      # Výpočty pre grafické prvky
       temp_pct = min(100, max(0, ((t_val + 20) / 70) * 100))
-      # Vietor: max 50 km/h -> uhol -135° až +135°
       wind_angle = (w_val / 50) * 270 - 135
-      # Vlhkosť: 0-100%
       hum_angle = (h_val / 100) * 270 - 135
-      # UV index: max 12
       uv_angle = (uv_val / 12) * 270 - 135
-      # Zrážky: max 50 mm
       rain_pct = min(100, max(0, (r_val / 50) * 100))
 
       html_current = f"""
@@ -256,7 +259,6 @@ df = load_data()
 if df is None or df.empty:
   st.warning(f"⚠️ Historický súbor '{CSV_FILE}' nebol nájdený alebo je prázdny.")
 else:
-  # Bočný panel (Sidebar) pre výber obdobia
   st.sidebar.header("⚙️ Ovládací panel")
   volba = st.sidebar.radio(
       "Vyberte spôsob zobrazenia:",
@@ -518,7 +520,6 @@ else:
     fig_rain.update_xaxes(hoverformat="%d.%m.%Y")
     st.plotly_chart(fig_rain, use_container_width=True)
 
-    # Rozbaľovacia tabuľka
     with st.expander("📋 Zobraziť zdrojovú tabuľku dát pre vybrané obdobie"):
       col_cas_tab = next(
           (
