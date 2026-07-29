@@ -168,6 +168,31 @@ st.markdown(
         font-weight: 600;
         color: #95a5a6;
     }
+
+    /* Štýly pre výstražné bannery */
+    .meteo-alert-banner {
+        padding: 14px 20px;
+        border-radius: 10px;
+        color: white;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .alert-icon {
+        font-size: 2.2em;
+        line-height: 1;
+    }
+    .alert-title {
+        font-weight: bold;
+        font-size: 1.05em;
+        margin-bottom: 2px;
+    }
+    .alert-desc {
+        font-size: 0.88em;
+        opacity: 0.95;
+    }
     </style>
 """,
     unsafe_allow_html=True,
@@ -181,52 +206,57 @@ LAT, LON = 49.18, 20.85
 
 # --- POMOCNÉ FUNKCIE ---
 def deg_to_cardinal(deg):
-  """Absolútne spoľahlivý prevod na svetovú stranu bez stupňov."""
+  """Univerzálny prepoistný prevod pre prípad číselných alebo textových hodnôt."""
   if pd.isna(deg) or deg == "-" or deg == "":
     return "-"
 
-  # Vyčistíme reťazec od ° a medzier
-  deg_str = str(deg).replace("°", "").replace("deg", "").strip()
+  deg_str = (
+      str(deg)
+      .replace("°", "")
+      .replace("º", "")
+      .replace("deg", "")
+      .strip()
+  )
   try:
     d = float(deg_str)
   except ValueError:
-    return deg_str.upper()
+    return str(deg).upper()  # Ak je už slovne, vráti text
 
   d = d % 360
 
   if 348.75 <= d or d < 11.25:
-    return "S"
+    return "Sever"
   elif 11.25 <= d < 33.75:
-    return "SSV"
+    return "Severo-severovýchod"
   elif 33.75 <= d < 56.25:
-    return "SV"
+    return "Severovýchod"
   elif 56.25 <= d < 78.75:
-    return "VSV"
+    return "Východo-severovýchod"
   elif 78.75 <= d < 101.25:
-    return "V"
+    return "Východ"
   elif 101.25 <= d < 123.75:
-    return "VJV"
+    return "Východo-juhovýchod"
   elif 123.75 <= d < 146.25:
-    return "JV"
+    return "Juhovýchod"
   elif 146.25 <= d < 168.75:
-    return "JJV"
+    return "Juho-juhovýchod"
   elif 168.75 <= d < 191.25:
-    return "J"
+    return "Juh"
   elif 191.25 <= d < 213.75:
-    return "JJZ"
+    return "Juho-juhozápad"
   elif 213.75 <= d < 236.25:
-    return "JZ"
+    return "Juhozápad"
   elif 236.25 <= d < 258.75:
-    return "ZJZ"
+    return "Západno-juhozápad"
   elif 258.75 <= d < 281.25:
-    return "Z"
+    return "Západ"
   elif 281.25 <= d < 303.75:
-    return "ZSZ"
+    return "Západno-severozápad"
   elif 303.75 <= d < 326.25:
-    return "SZ"
+    return "Severozápad"
   elif 326.25 <= d < 348.75:
-    return "SSZ"
-  return "S"
+    return "Severo-severozápad"
+  return "Sever"
 
 
 @st.cache_data
@@ -264,7 +294,7 @@ def load_data():
   df = df.dropna(subset=["DateTime"]).sort_values("DateTime")
 
   for col in df.columns:
-    if col not in [col_datum, col_cas, "DateTime"]:
+    if col not in [col_datum, col_cas, "DateTime", "Smer vetra"]:
       df[col] = pd.to_numeric(
           df[col].astype(str).str.replace(",", "."), errors="coerce"
       )
@@ -366,8 +396,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.subheader("⚡ Aktuálny stav počasia")
-
 current_api_data, forecast_data = get_weather_data(LAT, LON)
 curr_code = (
     current_api_data.get("weather_code", 0) if current_api_data else 0
@@ -434,7 +462,6 @@ if os.path.exists(CSV_AKTUALNE):
       r_val = get_val(akt, ["zrážky", "zrazky", "rain"])
       uv_val = get_val(akt, ["uv", "uvi"])
 
-      # Dôsledný prepočet na čistú svetovú stranu
       w_cardinal = deg_to_cardinal(w_dir_raw)
 
       if t_val <= 10.0 and chill_val != 0:
@@ -448,6 +475,70 @@ if os.path.exists(CSV_AKTUALNE):
           pocitova_val = chill_val
         else:
           pocitova_val = t_val
+
+      # --- AUTOMATICKÉ METEO VÝSTRAHY (BANNER) ---
+      active_warnings = []
+
+      if t_val <= 3.0:
+        active_warnings.append({
+            "title": "Pozor: Hrozí prízemný mráz!",
+            "desc": (
+                f"Teplota klesla na {t_val:.1f} °C. Hrozí riziko poškodenia"
+                " vegetácie."
+            ),
+            "color": "linear-gradient(135deg, #2980b9, #2c3e50)",
+            "icon": "❄️",
+        })
+
+      if curr_code in [95, 96, 99]:
+        active_warnings.append({
+            "title": "Výstrahová búrka!",
+            "desc": (
+                "V oblasti je detekovaná búrková činnosť. Zvýšte opatrnosť."
+            ),
+            "color": "linear-gradient(135deg, #c0392b, #e74c3c)",
+            "icon": "⚡",
+        })
+
+      if uv_val >= 8.0:
+        active_warnings.append({
+            "title": "Extrémny UV index!",
+            "desc": (
+                f"Aktuálna hodnota UV indexu je {uv_val:.1f}. Obmedzte pobyt"
+                " na slnku bez ochrany."
+            ),
+            "color": "linear-gradient(135deg, #d35400, #e67e22)",
+            "icon": "☀️",
+        })
+
+      if w_val >= 45.0:
+        active_warnings.append({
+            "title": "Výstraha: Silný vietor!",
+            "desc": (
+                f"Rýchlosť vetra dosahuje {w_val:.1f} km/h. Hrozí riziko pádov"
+                " predmetov."
+            ),
+            "color": "linear-gradient(135deg, #7f8c8d, #34495e)",
+            "icon": "💨",
+        })
+
+      # Zobrazenie výstražných bannerov, ak nejaké aktívne existujú
+      if active_warnings:
+        for alert in active_warnings:
+          st.markdown(
+              f"""
+                <div class="meteo-alert-banner" style="background: {alert['color']};">
+                    <div class="alert-icon">{alert['icon']}</div>
+                    <div>
+                        <div class="alert-title">⚠️ {alert['title']}</div>
+                        <div class="alert-desc">{alert['desc']}</div>
+                    </div>
+                </div>
+                """,
+              unsafe_allow_html=True,
+          )
+
+      st.subheader("⚡ Aktuálny stav počasia")
 
       st.markdown(
           f"""
