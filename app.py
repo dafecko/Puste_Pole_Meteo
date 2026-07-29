@@ -12,10 +12,15 @@ st.set_page_config(
     page_title="Meteo Web Dashboard - Pusté Pole", layout="wide"
 )
 
+# Vynútenie načítania čerstvých dát hneď pri prvom otvorení aplikácie
+if "initialized" not in st.session_state:
+  st.session_state.initialized = True
+  st.rerun()
+
 # Automatické obnovenie stránky každých 5 minút (300 000 ms)
 count = st_autorefresh(interval=300000, limit=None, key="meteo_autorefresh")
 
-# --- VLASTNÉ CSS ŠTÝLY (OPRAVENÉ FARBY A CIFERNÍKY) ---
+# --- VLASTNÉ CSS ŠTÝLY ---
 st.markdown(
     """
     <style>
@@ -110,7 +115,7 @@ st.markdown(
         transition: height 0.5s ease;
     }
 
-    /* Štýly pre kruhové ciferníky (fixnutý farebný kruh) */
+    /* Štýly pre kruhové ciferníky */
     .gauge-circle {
         width: 110px;
         height: 110px;
@@ -184,7 +189,6 @@ st.markdown(
         z-index: 5;
     }
 
-    /* Výstražné bannery */
     .meteo-alert-banner {
         padding: 14px 20px;
         border-radius: 12px;
@@ -413,7 +417,7 @@ if forecast_data and "sunrise" in forecast_data and "sunset" in forecast_data:
     pass
 moon_phase_str = get_moon_phase_info()
 
-# Načítanie aktuálnych dát zo súboru
+# Načítanie aktuálnych dát zo súboru (bez cache, aby boli vždy čerstvé pri otvorení)
 t_val, chill_val, heat_val, dew_val, h_val, p_val, w_val, r_val, uv_val = (
     0.0,
     0.0,
