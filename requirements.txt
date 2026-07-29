@@ -3,3 +3,4 @@ pandas
 plotly
 playwright
 streamlit-autorefresh
+requests
