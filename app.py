@@ -15,12 +15,14 @@ st.set_page_config(
 # Automatické obnovenie stránky každých 5 minút (300 000 ms)
 count = st_autorefresh(interval=300000, limit=None, key="meteo_autorefresh")
 
-# --- VLASTNÉ CSS ŠTÝLY S MOBILNOU OPTIMALIZÁCIOU ---
+# --- VLASTNÉ CSS ŠTÝLY S AUTOMATICKÝM PRISPÔSOBENÍM TÉME (DARK/LIGHT) ---
 st.markdown(
     """
     <style>
     .weather-card {
-        background: #ffffff;
+        background-color: var(--secondary-background-color, #ffffff);
+        color: var(--text-color, #2c3e50);
+        border: 1px solid rgba(150, 150, 150, 0.15);
         border-radius: 12px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.06);
         padding: 15px;
@@ -31,16 +33,16 @@ st.markdown(
         margin-bottom: 10px;
         height: 255px;
         justify-content: space-between;
-        transition: transform 0.2s ease;
+        transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease;
     }
     .weather-card:hover {
         transform: translateY(-3px);
-        box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.12);
     }
     .card-title {
         font-size: 0.95em;
         font-weight: 600;
-        color: #555;
+        opacity: 0.8;
         margin-bottom: 5px;
         height: 45px;
         display: flex;
@@ -51,19 +53,17 @@ st.markdown(
     .main-value {
         font-size: 1.5em;
         font-weight: bold;
-        color: #2c3e50;
         margin: 0;
     }
     .main-value-tooltip {
         font-size: 1.5em;
         font-weight: bold;
-        color: #2c3e50;
         margin: 0;
         cursor: help;
     }
     .sub-value {
         font-size: 0.8em;
-        color: #7f8c8d;
+        opacity: 0.7;
         margin-top: 2px;
     }
     
@@ -83,13 +83,13 @@ st.markdown(
         height: 100px;
         font-size: 8px;
         font-weight: 700;
-        color: #7f8c8d;
+        opacity: 0.6;
         text-align: right;
     }
     .thermometer-box, .pressure-box {
         height: 100px;
         width: 16px;
-        background: #e0e0e0;
+        background: rgba(128, 128, 128, 0.2);
         border-radius: 8px;
         position: relative;
         overflow: hidden;
@@ -118,25 +118,25 @@ st.markdown(
         display: flex;
         align-items: center;
         justify-content: center;
-        background: radial-gradient(circle, #ffffff 62%, #f8f9fa 100%);
+        background: var(--secondary-background-color, #ffffff);
         margin: 5px auto;
         box-shadow: inset 0 2px 4px rgba(0,0,0,0.05), 0 2px 6px rgba(0,0,0,0.05);
     }
     .gauge-hum {
         border: 5px solid transparent;
-        background-image: linear-gradient(#ffffff, #ffffff), conic-gradient(from 225deg, #e67e22 0deg, #2ecc71 135deg, #3498db 270deg, transparent 270deg);
+        background-image: linear-gradient(var(--secondary-background-color, #ffffff), var(--secondary-background-color, #ffffff)), conic-gradient(from 225deg, #e67e22 0deg, #2ecc71 135deg, #3498db 270deg, transparent 270deg);
         background-origin: border-box;
         background-clip: content-box, border-box;
     }
     .gauge-wind {
         border: 5px solid transparent;
-        background-image: linear-gradient(#ffffff, #ffffff), conic-gradient(from 225deg, #2ecc71 0deg, #f1c40f 100deg, #e67e22 180deg, #e74c3c 270deg, transparent 270deg);
+        background-image: linear-gradient(var(--secondary-background-color, #ffffff), var(--secondary-background-color, #ffffff)), conic-gradient(from 225deg, #2ecc71 0deg, #f1c40f 100deg, #e67e22 180deg, #e74c3c 270deg, transparent 270deg);
         background-origin: border-box;
         background-clip: content-box, border-box;
     }
     .gauge-uv {
         border: 5px solid transparent;
-        background-image: linear-gradient(#ffffff, #ffffff), conic-gradient(from 225deg, #2ecc71 0deg 67.5deg, #f1c40f 67.5deg 135deg, #e67e22 135deg 180deg, #e74c3c 180deg 247.5deg, #9b59b6 247.5deg 270deg, transparent 270deg);
+        background-image: linear-gradient(var(--secondary-background-color, #ffffff), var(--secondary-background-color, #ffffff)), conic-gradient(from 225deg, #2ecc71 0deg 67.5deg, #f1c40f 67.5deg 135deg, #e67e22 135deg 180deg, #e74c3c 180deg 247.5deg, #9b59b6 247.5deg 270deg, transparent 270deg);
         background-origin: border-box;
         background-clip: content-box, border-box;
     }
@@ -146,7 +146,7 @@ st.markdown(
         left: 50%;
         width: 3px;
         height: 35px;
-        background: #2c3e50;
+        background: var(--text-color, #2c3e50);
         transform-origin: bottom center;
         transform: translateX(-50%) rotate(0deg);
         z-index: 3;
@@ -155,7 +155,7 @@ st.markdown(
     .gauge-center-dot {
         width: 9px;
         height: 9px;
-        background: #2c3e50;
+        background: var(--text-color, #2c3e50);
         border-radius: 50%;
         z-index: 4;
         box-shadow: 0 1px 3px rgba(0,0,0,0.3);
@@ -164,7 +164,7 @@ st.markdown(
         position: absolute;
         font-size: 8px;
         font-weight: 700;
-        color: #7f8c8d;
+        opacity: 0.6;
     }
     .s-0   { bottom: 18px; left: 15px; }
     .s-20  { top: 42px; left: 12px; }
@@ -179,7 +179,7 @@ st.markdown(
         transform: translateX(-50%);
         font-size: 8px;
         font-weight: 600;
-        color: #95a5a6;
+        opacity: 0.5;
     }
 
     /* Štýly pre výstražné bannery */
@@ -410,7 +410,7 @@ st.title("🌤️ Meteorologický Web Dashboard - Pusté Pole")
 
 st.markdown(
     """
-    <div style="background-color: #f1f3f5; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; font-size: 0.9em; color: #495057; display: flex; justify-content: space-between; flex-wrap: wrap;">
+    <div style="background-color: var(--secondary-background-color, #f1f3f5); padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; font-size: 0.9em; display: flex; justify-content: space-between; flex-wrap: wrap;">
         <div>📍 <b>Lokalita:</b> Pusté Pole</div>
         <div>🚀 <b>Oficiálne spustená od:</b> 1. 7. 2026</div>
     </div>
@@ -580,18 +580,18 @@ with tab_aktualne:
 
   st.markdown(
       f"""
-        <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+        <div style="background-color: var(--secondary-background-color, #f8f9fa); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
             <div style="display: flex; align-items: center; gap: 20px;">
                 <div style="font-size: 3.5em;">{curr_icon}</div>
                 <div>
-                    <div style="font-size: 1.3em; font-weight: bold; color: #2c3e50;">{curr_desc}</div>
-                    <div style="font-size: 0.9em; color: #6c757d; margin-top: 2px;">Pusté Pole • Stanica online</div>
-                    <div style="font-size: 0.85em; color: #495057; margin-top: 6px;">
+                    <div style="font-size: 1.3em; font-weight: bold;">{curr_desc}</div>
+                    <div style="font-size: 0.9em; opacity: 0.7; margin-top: 2px;">Pusté Pole • Stanica online</div>
+                    <div style="font-size: 0.85em; opacity: 0.85; margin-top: 6px;">
                         🌅 Východ: <b>{sunrise_str}</b> | 🌇 Západ: <b>{sunset_str}</b> | 🌙 Fáza: <b>{moon_phase_str}</b>
                     </div>
                 </div>
             </div>
-            <div style="font-size: 0.9em; color: #555; text-align: right;">
+            <div style="font-size: 0.9em; text-align: right; opacity: 0.9;">
                 <div>Teplota: <b>{t_val:.1f} °C</b></div>
                 <div>Tlak: <b>{p_val:.1f} hPa</b></div>
                 <div>Vietor: <b>{w_val:.1f} km/h</b> ({w_cardinal})</div>
@@ -748,7 +748,7 @@ with tab_aktualne:
                     <div style="font-size: 1.8em; margin: 4px 0;">{icon}</div>
                     <div style="font-size: 0.85em; color: #e74c3c; margin: 2px 0;">Max: <b>{t_max_f[i]:.1f}°C</b></div>
                     <div style="font-size: 0.85em; color: #3498db; margin: 2px 0;">Min: <b>{t_min_f[i]:.1f}°C</b></div>
-                    <div style="font-size: 0.8em; color: #7f8c8d; margin-top: 6px;">🌧️ {rain_f[i]:.1f} mm</div>
+                    <div style="font-size: 0.8em; opacity: 0.7; margin-top: 6px;">🌧️ {rain_f[i]:.1f} mm</div>
                 </div>
                 """,
             unsafe_allow_html=True,
@@ -773,7 +773,6 @@ with tab_historia:
     max_d = df["DateTime"].max().date()
     df_filtered = df.copy()
 
-    # Premenné pre určenie predchádzajúceho obdobia na výpočet Deltas
     df_prev = pd.DataFrame()
 
     if "2" in volba:
@@ -806,7 +805,6 @@ with tab_historia:
           (df_filtered["DateTime"].dt.year == vybrany_rok)
           & (df_filtered["DateTime"].dt.month == vybrany_mesiac)
       ]
-      # Predchádzajúci mesiac
       prev_month = vybrany_mesiac - 1 if vybrany_mesiac > 1 else 12
       prev_year = vybrany_rok if vybrany_mesiac > 1 else vybrany_rok - 1
       df_prev = df[
@@ -829,7 +827,7 @@ with tab_historia:
       ]
     else:
       df_filtered = df.copy()
-      df_prev = pd.DataFrame()  # Celé obdobie nemá predchádzajúce porovnanie
+      df_prev = pd.DataFrame()
 
     t_max_col = next(
         (
@@ -987,7 +985,6 @@ with tab_historia:
           else 0
       )
 
-      # Výpočet deltas oproti predchádzajúcemu obdobiu, ak existuje
       delta_max_t, delta_min_t, delta_avg_t, delta_wind, delta_rain = (
           None,
           None,
@@ -1050,7 +1047,6 @@ with tab_historia:
 
       st.markdown("---")
 
-      # --- VOĽBA ZOBRAZENIA: GRAFY ALEBO TABUĽKA ---
       view_mode = st.radio(
           "Zvoliť spôsob zobrazenia údajov:",
           ["📈 Grafy", "📋 Tabuľka"],
@@ -1058,7 +1054,6 @@ with tab_historia:
       )
 
       if view_mode == "📈 Grafy":
-        # Konfigurácia a layout optimalizovaný pre responzivitu (automatické usporiadanie pod seba na mobile)
         chart_config = {"displayModeBar": False}
         layout_updates = dict(
             height=300,
@@ -1159,17 +1154,14 @@ with tab_historia:
                 config=chart_config,
             )
 
-        # 🧭 NOVINKA: Veterná ružica (Wind Rose) ak sú k dispozícii dáta o smere a rýchlosti vetra
         if w_dir_col and w_speed_col:
           st.markdown("---")
           st.subheader("🧭 Veterná ružica (Rozloženie smerov vetra)")
 
-          # Príprava dát pre polárny graf
           df_wind_rose = df_filtered.dropna(
               subset=[w_dir_col, w_speed_col]
           ).copy()
           if not df_wind_rose.empty:
-            # Pokus o konverziu smeru na čísla ak sú v stupňoch
             try:
               df_wind_rose["dir_deg"] = (
                   df_wind_rose[w_dir_col]
@@ -1224,7 +1216,6 @@ with tab_historia:
 
         st.dataframe(df_table, use_container_width=True)
 
-        # 📥 NOVINKA: Tlačidlo na stiahnutie vyfiltrovaných dát v CSV
         csv_export_data = df_table.to_csv(index=False, sep=";").encode("utf-8")
         st.download_button(
             label="📥 Stiahnuť vyfiltrované dáta (CSV)",
