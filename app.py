@@ -15,55 +15,57 @@ st.set_page_config(
 # Automatické obnovenie stránky každých 5 minút (300 000 ms)
 count = st_autorefresh(interval=300000, limit=None, key="meteo_autorefresh")
 
-# --- VLASTNÉ CSS ŠTÝLY S FIXNOU ČITATEĽNOSŤOU ---
+# --- VLASTNÉ CSS ŠTÝLY (OPRAVENÉ FARBY A CIFERNÍKY) ---
 st.markdown(
     """
     <style>
     .weather-card {
         background-color: var(--secondary-background-color);
-        border: 1px solid rgba(150, 150, 150, 0.15);
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-        padding: 15px;
+        border: 1px solid rgba(150, 150, 150, 0.18);
+        border-radius: 14px;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+        padding: 18px;
         display: flex;
         flex-direction: column;
         align-items: center;
         text-align: center;
         margin-bottom: 10px;
-        height: 255px;
+        height: 265px;
         justify-content: space-between;
-        transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
     .weather-card:hover {
         transform: translateY(-3px);
-        box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
     }
     .card-title {
         font-size: 0.95em;
-        font-weight: 600;
-        opacity: 0.8;
+        font-weight: 700;
+        opacity: 0.85;
         margin-bottom: 5px;
-        height: 45px;
+        height: 35px;
         display: flex;
         align-items: center;
         justify-content: center;
-        line-height: 1.2;
     }
     .main-value {
-        font-size: 1.5em;
-        font-weight: bold;
+        font-size: 1.6em;
+        font-weight: 800;
         margin: 0;
+        letter-spacing: -0.5px;
     }
     .main-value-tooltip {
-        font-size: 1.5em;
-        font-weight: bold;
+        font-size: 1.6em;
+        font-weight: 800;
         margin: 0;
         cursor: help;
+        letter-spacing: -0.5px;
     }
     .sub-value {
-        font-size: 0.8em;
-        opacity: 0.7;
-        margin-top: 2px;
+        font-size: 0.82em;
+        opacity: 0.75;
+        margin-top: 4px;
+        font-weight: 500;
     }
     
     /* Štýly pre vertikálne stupnice */
@@ -88,7 +90,7 @@ st.markdown(
     .thermometer-box, .pressure-box {
         height: 100px;
         width: 16px;
-        background: rgba(128, 128, 128, 0.2);
+        background: rgba(128, 128, 128, 0.15);
         border-radius: 8px;
         position: relative;
         overflow: hidden;
@@ -97,18 +99,18 @@ st.markdown(
         position: absolute;
         bottom: 0;
         width: 100%;
-        background: linear-gradient(to top, #3498db, #e74c3c);
+        background: linear-gradient(to top, #3498db, #2ecc71, #f1c40f, #e74c3c);
         transition: height 0.5s ease;
     }
     .pressure-fill {
         position: absolute;
         bottom: 0;
         width: 100%;
-        background: #9b59b6;
+        background: linear-gradient(to top, #3498db, #9b59b6);
         transition: height 0.5s ease;
     }
 
-    /* Štýly pre kruhové ciferníky */
+    /* Štýly pre kruhové ciferníky (fixnutý farebný kruh) */
     .gauge-circle {
         width: 110px;
         height: 110px;
@@ -117,27 +119,25 @@ st.markdown(
         display: flex;
         align-items: center;
         justify-content: center;
-        background: var(--secondary-background-color);
         margin: 5px auto;
-        box-shadow: inset 0 2px 4px rgba(0,0,0,0.05), 0 2px 6px rgba(0,0,0,0.05);
+        box-shadow: 0 3px 8px rgba(0,0,0,0.08);
     }
     .gauge-hum {
-        border: 5px solid transparent;
-        background-image: linear-gradient(var(--secondary-background-color), var(--secondary-background-color)), conic-gradient(from 225deg, #e67e22 0deg, #2ecc71 135deg, #3498db 270deg, transparent 270deg);
-        background-origin: border-box;
-        background-clip: content-box, border-box;
+        background: conic-gradient(from 225deg, #e67e22 0deg, #2ecc71 135deg, #3498db 270deg, transparent 270deg);
     }
     .gauge-wind {
-        border: 5px solid transparent;
-        background-image: linear-gradient(var(--secondary-background-color), var(--secondary-background-color)), conic-gradient(from 225deg, #2ecc71 0deg, #f1c40f 100deg, #e67e22 180deg, #e74c3c 270deg, transparent 270deg);
-        background-origin: border-box;
-        background-clip: content-box, border-box;
+        background: conic-gradient(from 225deg, #2ecc71 0deg, #f1c40f 100deg, #e67e22 180deg, #e74c3c 270deg, transparent 270deg);
     }
     .gauge-uv {
-        border: 5px solid transparent;
-        background-image: linear-gradient(var(--secondary-background-color), var(--secondary-background-color)), conic-gradient(from 225deg, #2ecc71 0deg 67.5deg, #f1c40f 67.5deg 135deg, #e67e22 135deg 180deg, #e74c3c 180deg 247.5deg, #9b59b6 247.5deg 270deg, transparent 270deg);
-        background-origin: border-box;
-        background-clip: content-box, border-box;
+        background: conic-gradient(from 225deg, #2ecc71 0deg 67.5deg, #f1c40f 67.5deg 135deg, #e67e22 135deg 180deg, #e74c3c 180deg 247.5deg, #9b59b6 247.5deg 270deg, transparent 270deg);
+    }
+    .gauge-inner-cover {
+        position: absolute;
+        width: 82px;
+        height: 82px;
+        background-color: var(--card-bg, #ffffff);
+        border-radius: 50%;
+        box-shadow: inset 0 2px 5px rgba(0,0,0,0.06);
     }
     .gauge-needle {
         position: absolute;
@@ -145,16 +145,17 @@ st.markdown(
         left: 50%;
         width: 3px;
         height: 35px;
-        background: var(--text-color);
+        background: #2c3e50;
         transform-origin: bottom center;
         transform: translateX(-50%) rotate(0deg);
         z-index: 3;
         border-radius: 2px;
     }
     .gauge-center-dot {
+        position: absolute;
         width: 9px;
         height: 9px;
-        background: var(--text-color);
+        background: #2c3e50;
         border-radius: 50%;
         z-index: 4;
         box-shadow: 0 1px 3px rgba(0,0,0,0.3);
@@ -163,58 +164,44 @@ st.markdown(
         position: absolute;
         font-size: 8px;
         font-weight: 700;
-        opacity: 0.6;
+        opacity: 0.7;
+        z-index: 5;
     }
-    .s-0   { bottom: 18px; left: 15px; }
-    .s-20  { top: 42px; left: 12px; }
-    .s-40  { top: 14px; left: 32px; }
-    .s-60  { top: 14px; right: 32px; }
-    .s-80  { top: 42px; right: 12px; }
-    .s-100 { bottom: 18px; right: 15px; }
+    .s-0   { bottom: 16px; left: 14px; }
+    .s-20  { top: 40px; left: 10px; }
+    .s-40  { top: 12px; left: 30px; }
+    .s-60  { top: 12px; right: 30px; }
+    .s-80  { top: 40px; right: 10px; }
+    .s-100 { bottom: 16px; right: 14px; }
     .scale-unit {
         position: absolute;
-        bottom: 12px;
+        bottom: 15px;
         left: 50%;
         transform: translateX(-50%);
         font-size: 8px;
-        font-weight: 600;
-        opacity: 0.5;
+        font-weight: 700;
+        opacity: 0.6;
+        z-index: 5;
     }
 
-    /* Štýly pre výstražné bannery */
+    /* Výstražné bannery */
     .meteo-alert-banner {
         padding: 14px 20px;
-        border-radius: 10px;
+        border-radius: 12px;
         color: white;
         margin-bottom: 15px;
         display: flex;
         align-items: center;
         gap: 15px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
     }
-    .alert-icon {
-        font-size: 2.2em;
-        line-height: 1;
-    }
-    .alert-title {
-        font-weight: bold;
-        font-size: 1.05em;
-        margin-bottom: 2px;
-    }
-    .alert-desc {
-        font-size: 0.88em;
-        opacity: 0.95;
-    }
+    .alert-icon { font-size: 2.2em; line-height: 1; }
+    .alert-title { font-weight: bold; font-size: 1.05em; margin-bottom: 2px; }
+    .alert-desc { font-size: 0.88em; opacity: 0.95; }
 
-    /* Responzívna optimalizácia pre mobilné zariadenia */
     @media (max-width: 768px) {
-        .weather-card {
-            height: auto;
-            margin-bottom: 15px;
-        }
-        .main-value, .main-value-tooltip {
-            font-size: 1.3em;
-        }
+        .weather-card { height: auto; margin-bottom: 15px; }
+        .main-value, .main-value-tooltip { font-size: 1.4em; }
     }
     </style>
 """,
@@ -231,7 +218,6 @@ LAT, LON = 49.18, 20.85
 def deg_to_cardinal(deg):
   if pd.isna(deg) or deg == "-" or deg == "":
     return "-"
-
   deg_str = (
       str(deg)
       .replace("°", "")
@@ -243,9 +229,7 @@ def deg_to_cardinal(deg):
     d = float(deg_str)
   except ValueError:
     return str(deg).upper()
-
   d = d % 360
-
   if 348.75 <= d or d < 11.25:
     return "Sever"
   elif 11.25 <= d < 33.75:
@@ -304,7 +288,6 @@ def load_data():
   col_cas = next(
       (c for c in df.columns if "čas" in c.lower() or "cas" in c.lower()), None
   )
-
   if not col_datum or not col_cas:
     return df
 
@@ -314,13 +297,11 @@ def load_data():
       errors="coerce",
   )
   df = df.dropna(subset=["DateTime"]).sort_values("DateTime")
-
   for col in df.columns:
     if col not in [col_datum, col_cas, "DateTime", "Smer vetra"]:
       df[col] = pd.to_numeric(
           df[col].astype(str).str.replace(",", "."), errors="coerce"
       )
-
   return df
 
 
@@ -385,7 +366,6 @@ def get_moon_phase_info():
   diff = (today - known_new_moon).days
   synodic_month = 29.5305877057
   phase = (diff % synodic_month) / synodic_month
-
   if phase < 0.03 or phase > 0.97:
     return "🌑 Nov"
   elif phase < 0.22:
@@ -579,11 +559,11 @@ with tab_aktualne:
 
   st.markdown(
       f"""
-        <div style="background-color: var(--secondary-background-color); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+        <div style="background-color: var(--secondary-background-color); border-radius: 14px; padding: 20px; box-shadow: 0 6px 16px rgba(0,0,0,0.06); display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
             <div style="display: flex; align-items: center; gap: 20px;">
                 <div style="font-size: 3.5em;">{curr_icon}</div>
                 <div>
-                    <div style="font-size: 1.3em; font-weight: bold;">{curr_desc}</div>
+                    <div style="font-size: 1.35em; font-weight: 800;">{curr_desc}</div>
                     <div style="font-size: 0.9em; opacity: 0.7; margin-top: 2px;">Pusté Pole • Stanica online</div>
                     <div style="font-size: 0.85em; opacity: 0.85; margin-top: 6px;">
                         🌅 Východ: <b>{sunrise_str}</b> | 🌇 Západ: <b>{sunset_str}</b> | 🌙 Fáza: <b>{moon_phase_str}</b>
@@ -661,6 +641,7 @@ with tab_aktualne:
             <div class="weather-card">
                 <div class="card-title">Vlhkosť vzduchu</div>
                 <div class="gauge-circle gauge-hum">
+                    <div class="gauge-inner-cover"></div>
                     <div class="scale-val s-0">0</div><div class="scale-val s-20">20</div><div class="scale-val s-40">40</div><div class="scale-val s-60">60</div><div class="scale-val s-80">80</div><div class="scale-val s-100">100</div>
                     <div class="scale-unit">%</div>
                     <div class="gauge-needle" style="transform: translateX(-50%) rotate({hum_angle}deg);"></div>
@@ -693,6 +674,7 @@ with tab_aktualne:
             <div class="weather-card">
                 <div class="card-title">Rýchlosť vetra</div>
                 <div class="gauge-circle gauge-wind">
+                    <div class="gauge-inner-cover"></div>
                     <div class="scale-val s-0">0</div><div class="scale-val s-20">10</div><div class="scale-val s-40">20</div><div class="scale-val s-60">30</div><div class="scale-val s-80">40</div><div class="scale-val s-100">50</div>
                     <div class="scale-unit">km/h</div>
                     <div class="gauge-needle" style="transform: translateX(-50%) rotate({wind_angle}deg);"></div>
@@ -710,6 +692,7 @@ with tab_aktualne:
             <div class="weather-card">
                 <div class="card-title">UV index</div>
                 <div class="gauge-circle gauge-uv">
+                    <div class="gauge-inner-cover"></div>
                     <div class="scale-val s-0">0</div><div class="scale-val s-20">2</div><div class="scale-val s-40">5</div><div class="scale-val s-60">7</div><div class="scale-val s-80">10</div><div class="scale-val s-100">12</div>
                     <div class="scale-unit">UV</div>
                     <div class="gauge-needle" style="transform: translateX(-50%) rotate({uv_angle}deg);"></div>
