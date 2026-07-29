@@ -1,3 +1,4 @@
+import datetime
 import os
 import pandas as pd
 import plotly.graph_objects as go
@@ -25,28 +26,33 @@ st.markdown(
         align-items: center;
         text-align: center;
         margin-bottom: 10px;
-        height: 255px; /* Pevná výška pre každú kartu, aby boli identické */
-        justify-content: space-between; /* Nadpis hore, graf v strede, hodnota dole */
+        height: 255px;
+        justify-content: space-between;
     }
     .card-title {
         font-size: 0.95em;
         font-weight: 600;
         color: #555;
         margin-bottom: 5px;
-        height: 45px; /* Pevný box pre nadpis (zabezpečí rovnaký priestor pre 1 aj 2 riadky) */
+        height: 45px;
         display: flex;
         align-items: center;
         justify-content: center;
         line-height: 1.2;
     }
     .main-value {
-        font-size: 1.6em;
+        font-size: 1.5em;
         font-weight: bold;
         color: #2c3e50;
         margin: 0;
     }
+    .sub-value {
+        font-size: 0.8em;
+        color: #7f8c8d;
+        margin-top: 2px;
+    }
     
-    /* Štýly pre vertikálne stupnice (teplomer, zrážky) */
+    /* Štýly pre vertikálne stupnice */
     .bar-container {
         display: flex;
         align-items: center;
@@ -65,7 +71,7 @@ st.markdown(
         color: #7f8c8d;
         text-align: right;
     }
-    .thermometer-box, .rain-box {
+    .thermometer-box, .pressure-box {
         height: 100px;
         width: 16px;
         background: #e0e0e0;
@@ -80,15 +86,15 @@ st.markdown(
         background: linear-gradient(to top, #3498db, #e74c3c);
         transition: height 0.5s ease;
     }
-    .rain-fill {
+    .pressure-fill {
         position: absolute;
         bottom: 0;
         width: 100%;
-        background: #3498db;
+        background: #9b59b6;
         transition: height 0.5s ease;
     }
 
-    /* Štýly pre kruhové ciferníky s farebnými škálami */
+    /* Štýly pre kruhové ciferníky */
     .gauge-circle {
         width: 110px;
         height: 110px;
@@ -187,8 +193,7 @@ def load_data():
       df = pd.read_csv(
           CSV_FILE, sep=",", decimal=".", on_bad_lines="skip", engine="python"
       )
-    except Exception as e:
-      st.error(f"Nepodarilo sa načítať historický CSV súbor: {e}")
+    except Exception:
       return None
 
   col_datum = next(
@@ -220,12 +225,12 @@ def load_data():
 
 @st.cache_data(ttl=1800)
 def get_weather_data(lat, lon):
-  url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode&timezone=Europe/Bratislava"
+  url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode,sunrise,sunset&timezone=Europe/Bratislava"
   try:
     response = requests.get(url)
     data = response.json()
     return data.get("current", None), data.get("daily", None)
-  except Exception as e:
+  except Exception:
     return None, None
 
 
@@ -273,10 +278,34 @@ def get_weather_description(code):
     return "Oblačno"
 
 
+def get_moon_phase_info():
+  today = datetime.date.today()
+  known_new_moon = datetime.date(2000, 1, 6)
+  diff = (today - known_new_moon).days
+  synodic_month = 29.5305877057
+  phase = (diff % synodic_month) / synodic_month
+
+  if phase < 0.03 or phase > 0.97:
+    return "🌑 Nov"
+  elif phase < 0.22:
+    return "🌒 Dorastajúci polmesiac"
+  elif phase < 0.28:
+    return "🌓 Prvá štvrť"
+  elif phase < 0.47:
+    return "🌔 Dorastajúci mesiac"
+  elif phase < 0.53:
+    return "🌕 Spln"
+  elif phase < 0.72:
+    return "🌖 Couvajúci mesiac"
+  elif phase < 0.78:
+    return "🌗 Posledná štvrť"
+  else:
+    return "🌘 Couvajúci polmesiac"
+
+
 # --- HLAVNÁ STRÁNKA ---
 st.title("🌤️ Meteorologický Web Dashboard - Pusté Pole")
 
-# 1. SEKCIA: AKTUÁLNE ÚDAJE
 st.subheader("⚡ Aktuálny stav počasia")
 
 current_api_data, forecast_data = get_weather_data(LAT, LON)
@@ -285,6 +314,15 @@ curr_code = (
 )
 curr_icon = get_weather_icon(curr_code)
 curr_desc = get_weather_description(curr_code)
+
+sunrise_str, sunset_str = "--:--", "--:--"
+if forecast_data and "sunrise" in forecast_data and "sunset" in forecast_data:
+  try:
+    sunrise_str = forecast_data["sunrise"][0].split("T")[1]
+    sunset_str = forecast_data["sunset"][0].split("T")[1]
+  except:
+    pass
+moon_phase_str = get_moon_phase_info()
 
 if os.path.exists(CSV_AKTUALNE):
   try:
@@ -315,9 +353,20 @@ if os.path.exists(CSV_AKTUALNE):
                 return val
         return 0.0
 
+      def get_str_val(df_row, keywords):
+        for k in keywords:
+          for col in df_row.index:
+            if k.lower() in col.lower():
+              return str(df_row[col])
+        return "-"
+
       t_val = get_val(akt, ["teplota", "temp"])
+      heat_val = get_val(akt, ["heat", "heat index"])
+      dew_val = get_val(akt, ["dew", "rosný"])
       h_val = get_val(akt, ["vlhkosť", "vlhkost", "hum"])
+      p_val = get_val(akt, ["tlak", "bar", "pressure"])
       w_val = get_val(akt, ["vietor", "wind", "wspd"])
+      w_dir = get_str_val(akt, ["smer", "wdir"])
       r_val = get_val(akt, ["zrážky", "zrazky", "rain"])
       uv_val = get_val(akt, ["uv", "uvi"])
 
@@ -329,28 +378,34 @@ if os.path.exists(CSV_AKTUALNE):
                     <div>
                         <div style="font-size: 1.3em; font-weight: bold; color: #2c3e50;">{curr_desc}</div>
                         <div style="font-size: 0.9em; color: #6c757d; margin-top: 2px;">Pusté Pole • Aktuálny stav zo stanice</div>
+                        <div style="font-size: 0.85em; color: #495057; margin-top: 6px;">
+                            🌅 Východ: <b>{sunrise_str}</b> | 🌇 Západ: <b>{sunset_str}</b> | 🌙 Fáza: <b>{moon_phase_str}</b>
+                        </div>
                     </div>
                 </div>
-                <div style="display: flex; gap: 25px; flex-wrap: wrap; text-align: right;">
+                <div style="display: flex; gap: 20px; flex-wrap: wrap; text-align: right;">
                     <div>
-                        <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">TEPLOTA</div>
-                        <div style="font-size: 1.2em; font-weight: bold; color: #2c3e50;">{t_val:.1f} °C</div>
+                        <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">TEPLOTA / POCIT</div>
+                        <div style="font-size: 1.1em; font-weight: bold; color: #2c3e50;">{t_val:.1f} °C</div>
+                        <div style="font-size: 0.75em; color: #7f8c8d;">Heat: {heat_val:.1f} °C</div>
                     </div>
                     <div>
-                        <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">VLHKOSŤ</div>
-                        <div style="font-size: 1.2em; font-weight: bold; color: #2c3e50;">{h_val:.0f} %</div>
+                        <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">TLAK</div>
+                        <div style="font-size: 1.1em; font-weight: bold; color: #2c3e50;">{p_val:.1f} hPa</div>
                     </div>
                     <div>
-                        <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">VIETOR</div>
-                        <div style="font-size: 1.2em; font-weight: bold; color: #2c3e50;">{w_val:.1f} km/h</div>
+                        <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">VLHKOSŤ / ROSNÝ B.</div>
+                        <div style="font-size: 1.1em; font-weight: bold; color: #2c3e50;">{h_val:.0f} %</div>
+                        <div style="font-size: 0.75em; color: #7f8c8d;">Rosný: {dew_val:.1f} °C</div>
                     </div>
                     <div>
-                        <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">ZRÁŽKY</div>
-                        <div style="font-size: 1.2em; font-weight: bold; color: #2c3e50;">{r_val:.1f} mm</div>
+                        <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">VIETOR ({w_dir})</div>
+                        <div style="font-size: 1.1em; font-weight: bold; color: #2c3e50;">{w_val:.1f} km/h</div>
                     </div>
                     <div>
-                        <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">UV INDEX</div>
-                        <div style="font-size: 1.2em; font-weight: bold; color: #2c3e50;">{uv_val:.1f}</div>
+                        <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">ZRÁŽKY / UV</div>
+                        <div style="font-size: 1.1em; font-weight: bold; color: #2c3e50;">{r_val:.1f} mm</div>
+                        <div style="font-size: 0.75em; color: #7f8c8d;">UV: {uv_val:.1f}</div>
                     </div>
                 </div>
             </div>
@@ -359,7 +414,7 @@ if os.path.exists(CSV_AKTUALNE):
       )
 
       temp_pct = min(100, max(0, ((t_val + 20) / 70) * 100))
-      rain_pct = min(100, max(0, (r_val / 50) * 100))
+      press_pct = min(100, max(0, ((p_val - 950) / (1050 - 950)) * 100))
 
       hum_angle = (h_val / 100) * 270 - 135
       wind_angle = min(135, max(-135, (w_val / 50) * 270 - 135))
@@ -384,6 +439,7 @@ if os.path.exists(CSV_AKTUALNE):
                         </div>
                     </div>
                     <div class="main-value">{t_val:.1f} °C</div>
+                    <div class="sub-value">Pocit: {heat_val:.1f} °C</div>
                 </div>
                 """,
             unsafe_allow_html=True,
@@ -406,12 +462,36 @@ if os.path.exists(CSV_AKTUALNE):
                         <div class="gauge-center-dot"></div>
                     </div>
                     <div class="main-value">{h_val:.0f} %</div>
+                    <div class="sub-value">Rosný bod: {dew_val:.1f} °C</div>
                 </div>
                 """,
             unsafe_allow_html=True,
         )
 
       with col3:
+        st.markdown(
+            f"""
+                <div class="weather-card">
+                    <div class="card-title">Atmosférický tlak</div>
+                    <div class="bar-container">
+                        <div class="bar-scale">
+                            <span>1050</span>
+                            <span>1020</span>
+                            <span>980</span>
+                            <span>950</span>
+                        </div>
+                        <div class="pressure-box">
+                            <div class="pressure-fill" style="height: {press_pct}%;"></div>
+                        </div>
+                    </div>
+                    <div class="main-value">{p_val:.1f} hPa</div>
+                    <div class="sub-value">Barometer</div>
+                </div>
+                """,
+            unsafe_allow_html=True,
+        )
+
+      with col4:
         st.markdown(
             f"""
                 <div class="weather-card">
@@ -428,28 +508,7 @@ if os.path.exists(CSV_AKTUALNE):
                         <div class="gauge-center-dot"></div>
                     </div>
                     <div class="main-value">{w_val:.1f} km/h</div>
-                </div>
-                """,
-            unsafe_allow_html=True,
-        )
-
-      with col4:
-        st.markdown(
-            f"""
-                <div class="weather-card">
-                    <div class="card-title">Zrážky</div>
-                    <div class="bar-container">
-                        <div class="bar-scale">
-                            <span>50</span>
-                            <span>35</span>
-                            <span>20</span>
-                            <span>0</span>
-                        </div>
-                        <div class="rain-box">
-                            <div class="rain-fill" style="height: {rain_pct}%;"></div>
-                        </div>
-                    </div>
-                    <div class="main-value">{r_val:.1f} mm</div>
+                    <div class="sub-value">Smer: {w_dir}</div>
                 </div>
                 """,
             unsafe_allow_html=True,
@@ -472,21 +531,18 @@ if os.path.exists(CSV_AKTUALNE):
                         <div class="gauge-center-dot"></div>
                     </div>
                     <div class="main-value">{uv_val:.1f}</div>
+                    <div class="sub-value">Zrážky: {r_val:.1f} mm</div>
                 </div>
                 """,
             unsafe_allow_html=True,
         )
 
-    else:
-      st.warning("Súbor 'meteo_aktualne.csv' je prázdny.")
   except Exception as e:
-    st.error(f"Chyba pri čítaní 'meteo_aktualne.csv': {e}")
-else:
-  st.info("Súbor 'meteo_aktualne.csv' sa zatiaľ nenašiel v repozitári.")
+    st.error(f"Chyba pri spracovaní dát: {e}")
 
 st.markdown("---")
 
-# 2. SEKCIA: PREDPOVEĎ POČASIA S DYNAMICKÝMI IKONAMI
+# 2. SEKCIA: PREDPOVEĎ POČASIA
 st.subheader("🔮 Predpoveď počasia na najbližšie dni")
 
 if forecast_data:
@@ -517,17 +573,13 @@ if forecast_data:
             """,
           unsafe_allow_html=True,
       )
-else:
-  st.info("Predpoveď počasia je momentálne nedostupná.")
 
 st.markdown("---")
 
 # 3. NAČÍTANIE HISTORICKÝCH DÁT PRE GRAFY
 df = load_data()
 
-if df is None or df.empty:
-  st.warning(f"⚠️ Historický súbor '{CSV_FILE}' nebol nájdený alebo je prázdny.")
-else:
+if df is not None and not df.empty:
   st.sidebar.header("⚙️ Ovládací panel")
   volba = st.sidebar.radio(
       "Vyberte spôsob zobrazenia:",
@@ -541,7 +593,6 @@ else:
 
   min_d = df["DateTime"].min().date()
   max_d = df["DateTime"].max().date()
-
   df_filtered = df.copy()
 
   if "2" in volba:
@@ -583,9 +634,7 @@ else:
         & (df_filtered["DateTime"].dt.date <= datum_do)
     ]
 
-  if df_filtered.empty:
-    st.warning("⚠️ Pre zvolené obdobie sa nenašli žiadne dáta.")
-  else:
+  if not df_filtered.empty:
     t_max = next(
         (
             c
@@ -603,15 +652,6 @@ else:
         ),
         None,
     )
-    t_min = next(
-        (
-            c
-            for c in df_filtered.columns
-            if "tepl" in c.lower() and "min" in c.lower()
-        ),
-        None,
-    )
-
     w_max = next(
         (
             c
@@ -620,24 +660,6 @@ else:
         ),
         None,
     )
-    w_avg = next(
-        (
-            c
-            for c in df_filtered.columns
-            if "viet" in c.lower()
-            and ("priem" in c.lower() or "avg" in c.lower())
-        ),
-        None,
-    )
-    w_min = next(
-        (
-            c
-            for c in df_filtered.columns
-            if "viet" in c.lower() and "min" in c.lower()
-        ),
-        None,
-    )
-
     r_col = next(
         (
             c
@@ -674,14 +696,14 @@ else:
     st.subheader("📊 Štatistiky a vývoj za vybrané obdobie")
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("🔴 Max Teplota (Obdobie)", f"{max_temp:.1f} °C")
-    col2.metric("🟠 Priemerná Teplota (Obdobie)", f"{avg_temp:.1f} °C")
-    col3.metric("🟣 Max Vietor (Obdobie)", f"{max_wind:.1f} km/h")
-    col4.metric("🔵 Celkové Zrážky (Obdobie)", f"{total_rain:.1f} mm")
+    col1.metric("🔴 Max Teplota", f"{max_temp:.1f} °C")
+    col2.metric("🟠 Priemerná Teplota", f"{avg_temp:.1f} °C")
+    col3.metric("🟣 Max Vietor", f"{max_wind:.1f} km/h")
+    col4.metric("🔵 Celkové Zrážky", f"{total_rain:.1f} mm")
 
     st.markdown("---")
 
-    # 1. GRAF: TEPLOTY
+    # Graf teploty
     fig_temp = go.Figure()
     if t_max:
       fig_temp.add_trace(
@@ -692,116 +714,7 @@ else:
               line=dict(color="#d9534f", width=2),
           )
       )
-    if t_avg:
-      fig_temp.add_trace(
-          go.Scatter(
-              x=df_filtered["DateTime"],
-              y=df_filtered[t_avg],
-              name="Teplota Priemer",
-              line=dict(color="#f0ad4e", width=2),
-          )
-      )
-    if t_min:
-      fig_temp.add_trace(
-          go.Scatter(
-              x=df_filtered["DateTime"],
-              y=df_filtered[t_min],
-              name="Teplota Min",
-              line=dict(color="#5bc0de", width=2),
-          )
-      )
-
     fig_temp.update_layout(
-        title="Teplota (°C)",
-        height=320,
-        template="plotly_white",
-        hovermode="x unified",
-        legend=dict(
-            orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
-        ),
+        title="Teplota (°C)", height=320, template="plotly_white"
     )
-    fig_temp.update_xaxes(hoverformat="%d.%m.%Y")
     st.plotly_chart(fig_temp, use_container_width=True)
-
-    # 2. GRAF: VIETOR
-    fig_wind = go.Figure()
-    if w_max:
-      fig_wind.add_trace(
-          go.Scatter(
-              x=df_filtered["DateTime"],
-              y=df_filtered[w_max],
-              name="Vietor Max",
-              line=dict(color="#8e44ad", width=2),
-          )
-      )
-    if w_avg:
-      fig_wind.add_trace(
-          go.Scatter(
-              x=df_filtered["DateTime"],
-              y=df_filtered[w_avg],
-              name="Vietor Priemer",
-              line=dict(color="#27ae60", width=2),
-          )
-      )
-    if w_min:
-      fig_wind.add_trace(
-          go.Scatter(
-              x=df_filtered["DateTime"],
-              y=df_filtered[w_min],
-              name="Vietor Min",
-              line=dict(color="#16a085", width=2),
-          )
-      )
-
-    fig_wind.update_layout(
-        title="Rýchlosť vetra (km/h)",
-        height=320,
-        template="plotly_white",
-        hovermode="x unified",
-        legend=dict(
-            orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
-        ),
-    )
-    fig_wind.update_xaxes(hoverformat="%d.%m.%Y")
-    st.plotly_chart(fig_wind, use_container_width=True)
-
-    # 3. GRAF: ZRÁŽKY
-    fig_rain = go.Figure()
-    if r_col:
-      fig_rain.add_trace(
-          go.Bar(
-              x=df_filtered["DateTime"],
-              y=df_filtered[r_col],
-              name="Zrážky (mm)",
-              marker_color="#3498db",
-              width=21600000,
-          )
-      )
-
-    fig_rain.update_layout(
-        title="Zrážky (mm)",
-        height=320,
-        template="plotly_white",
-        hovermode="x unified",
-        legend=dict(
-            orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
-        ),
-    )
-    fig_rain.update_xaxes(hoverformat="%d.%m.%Y")
-    st.plotly_chart(fig_rain, use_container_width=True)
-
-    with st.expander("📋 Zobraziť zdrojovú tabuľku dát pre vybrané obdobie"):
-      col_cas_tab = next(
-          (
-              c
-              for c in df_filtered.columns
-              if "čas" in c.lower() or "cas" in c.lower()
-          ),
-          None,
-      )
-      cols_to_hide = [col_cas_tab, "DateTime"] if col_cas_tab else ["DateTime"]
-      df_table = df_filtered.drop(
-          columns=[c for c in cols_to_hide if c in df_filtered.columns],
-          errors="ignore",
-      )
-      st.dataframe(df_table)
