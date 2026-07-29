@@ -56,8 +56,8 @@
             margin: 10px 0;
         }
 
-        /* Teplomer (Stĺpec) */
-        .thermometer-box {
+        /* Teplomer / Zrážky (Stĺpec) */
+        .thermometer-box, .rain-box {
             height: 140px;
             width: 24px;
             background: #e0e0e0;
@@ -71,6 +71,13 @@
             bottom: 0;
             width: 100%;
             background: linear-gradient(to top, #3498db, #e74c3c);
+            transition: height 0.5s ease;
+        }
+        .rain-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: #3498db;
             transition: height 0.5s ease;
         }
 
@@ -135,22 +142,22 @@
 
         <!-- 1. TEPLOTA -->
         <div class="weather-card">
-            <div class="card-title">Temperature</div>
+            <div class="card-title">Teplota</div>
             <div class="thermometer-box">
                 <div class="thermometer-fill" id="temp-fill" style="height: 50%;"></div>
             </div>
             <div class="main-value"><span id="val-temp">--</span> °C</div>
             <table class="stats-table">
                 <tr><th></th><th><span class="badge-max">Max</span></th><th><span class="badge-min">Min</span></th></tr>
-                <tr><td class="label-cell">Daily</td><td id="t-max-d">--</td><td id="t-min-d">--</td></tr>
-                <tr><td class="label-cell">Monthly</td><td id="t-max-m">--</td><td id="t-min-m">--</td></tr>
-                <tr><td class="label-cell">Yearly</td><td id="t-max-y">--</td><td id="t-min-y">--</td></tr>
+                <tr><td class="label-cell">Denné</td><td id="t-max-d">--</td><td id="t-min-d">--</td></tr>
+                <tr><td class="label-cell">Mesačné</td><td id="t-max-m">--</td><td id="t-min-m">--</td></tr>
+                <tr><td class="label-cell">Ročné</td><td id="t-max-y">--</td><td id="t-min-y">--</td></tr>
             </table>
         </div>
 
         <!-- 2. VIETOR -->
         <div class="weather-card">
-            <div class="card-title">Wind speed</div>
+            <div class="card-title">Rýchlosť vetra</div>
             <div class="gauge-circle">
                 <div class="gauge-needle" id="wind-needle"></div>
                 <div class="gauge-center-dot"></div>
@@ -158,15 +165,15 @@
             <div class="main-value"><span id="val-wind">--</span> m/s</div>
             <table class="stats-table">
                 <tr><th></th><th><span class="badge-max">Max</span></th></tr>
-                <tr><td class="label-cell">Daily</td><td id="w-max-d">--</td></tr>
-                <tr><td class="label-cell">Monthly</td><td id="w-max-m">--</td></tr>
-                <tr><td class="label-cell">Yearly</td><td id="w-max-y">--</td></tr>
+                <tr><td class="label-cell">Denné</td><td id="w-max-d">--</td></tr>
+                <tr><td class="label-cell">Mesačné</td><td id="w-max-m">--</td></tr>
+                <tr><td class="label-cell">Ročné</td><td id="w-max-y">--</td></tr>
             </table>
         </div>
 
         <!-- 3. VLHKOSŤ -->
         <div class="weather-card">
-            <div class="card-title">Humidity</div>
+            <div class="card-title">Vlhkosť vzduchu</div>
             <div class="gauge-circle">
                 <div class="gauge-needle" id="hum-needle"></div>
                 <div class="gauge-center-dot"></div>
@@ -174,9 +181,9 @@
             <div class="main-value"><span id="val-hum">--</span> %</div>
             <table class="stats-table">
                 <tr><th></th><th><span class="badge-max">Max</span></th><th><span class="badge-min">Min</span></th></tr>
-                <tr><td class="label-cell">Daily</td><td id="h-max-d">--</td><td id="h-min-d">--</td></tr>
-                <tr><td class="label-cell">Monthly</td><td id="h-max-m">--</td><td id="h-min-m">--</td></tr>
-                <tr><td class="label-cell">Yearly</td><td id="h-max-y">--</td><td id="h-min-y">--</td></tr>
+                <tr><td class="label-cell">Denné</td><td id="h-max-d">--</td><td id="h-min-d">--</td></tr>
+                <tr><td class="label-cell">Mesačné</td><td id="h-max-m">--</td><td id="h-min-m">--</td></tr>
+                <tr><td class="label-cell">Ročné</td><td id="h-max-y">--</td><td id="h-min-y">--</td></tr>
             </table>
         </div>
 
@@ -190,9 +197,24 @@
             <div class="main-value"><span id="val-uv">--</span></div>
             <table class="stats-table">
                 <tr><th></th><th><span class="badge-max">Max</span></th></tr>
-                <tr><td class="label-cell">Daily</td><td id="uv-max-d">--</td></tr>
-                <tr><td class="label-cell">Monthly</td><td id="uv-max-m">--</td></tr>
-                <tr><td class="label-cell">Yearly</td><td id="uv-max-y">--</td></tr>
+                <tr><td class="label-cell">Denné</td><td id="uv-max-d">--</td></tr>
+                <tr><td class="label-cell">Mesačné</td><td id="uv-max-m">--</td></tr>
+                <tr><td class="label-cell">Ročné</td><td id="uv-max-y">--</td></tr>
+            </table>
+        </div>
+
+        <!-- 5. ZRÁŽKY -->
+        <div class="weather-card">
+            <div class="card-title">Zrážky</div>
+            <div class="rain-box">
+                <div class="rain-fill" id="rain-fill" style="height: 0%;"></div>
+            </div>
+            <div class="main-value"><span id="val-rain">--</span> mm</div>
+            <table class="stats-table">
+                <tr><th></th><th><span class="badge-max">Max / Spolu</span></th></tr>
+                <tr><td class="label-cell">Denné</td><td id="r-max-d">--</td></tr>
+                <tr><td class="label-cell">Mesačné</td><td id="r-max-m">--</td></tr>
+                <tr><td class="label-cell">Ročné</td><td id="r-max-y">--</td></tr>
             </table>
         </div>
 
@@ -206,43 +228,46 @@
                 skipEmptyLines: true,
                 complete: function(results) {
                     if (results.data && results.data.length > 0) {
-                        // Predpokladáme, že najnovšie dáta sú v prvom alebo poslednom riadku
                         const row = results.data[results.data.length - 1];
 
-                        // Čas aktualizácie (ak máte stĺpec s časom, napr. 'time' alebo 'datum')
                         if(row.time) {
                             document.getElementById('update-time').textContent = `Posledná aktualizácia: ${row.time}`;
                         }
 
-                        // --- TEPLOTA ---
+                        // Teplota
                         let temp = parseFloat(row.temperature || row.teplota || 0);
                         document.getElementById('val-temp').textContent = temp.toFixed(1);
                         let tempPercent = Math.min(100, Math.max(0, ((temp + 30) / 90) * 100));
                         document.getElementById('temp-fill').style.height = tempPercent + '%';
 
-                        // --- VIETOR ---
+                        // Vietor
                         let wind = parseFloat(row.wind_speed || row.vietor || 0);
                         document.getElementById('val-wind').textContent = wind.toFixed(1);
                         let windAngle = (wind / 50) * 270 - 135;
                         document.getElementById('wind-needle').style.transform = `translateX(-50%) rotate(${windAngle}deg)`;
 
-                        // --- VLHKOSŤ ---
+                        // Vlhkosť
                         let hum = parseFloat(row.humidity || row.vlhkost || 0);
                         document.getElementById('val-hum').textContent = hum;
                         let humAngle = (hum / 100) * 270 - 135;
                         document.getElementById('hum-needle').style.transform = `translateX(-50%) rotate(${humAngle}deg)`;
 
-                        // --- UV INDEX ---
+                        // UV Index
                         let uv = parseFloat(row.uv_index || row.uv || 0);
                         document.getElementById('val-uv').textContent = uv.toFixed(1);
                         let uvAngle = (uv / 15) * 270 - 135;
                         document.getElementById('uv-needle').style.transform = `translateX(-50%) rotate(${uvAngle}deg)`;
+
+                        // Zrážky
+                        let rain = parseFloat(row.rain || row.zrazky || row.dazdz || 0);
+                        document.getElementById('val-rain').textContent = rain.toFixed(1);
+                        let rainPercent = Math.min(100, Math.max(0, (rain / 50) * 100));
+                        document.getElementById('rain-fill').style.height = rainPercent + '%';
                     }
                 }
             });
         }
 
-        // Spustiť pri načítaní a opakova každých 60 sekúnd
         loadCSVData();
         setInterval(loadCSVData, 60000);
     </script>
