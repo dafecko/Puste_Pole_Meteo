@@ -1056,10 +1056,27 @@ with tab_historia:
             st.plotly_chart(fig_hum, use_container_width=True)
       else:
         st.subheader("📋 Podrobná tabuľka dát")
-        st.dataframe(
-            df_filtered.sort_values("DateTime", ascending=False),
-            use_container_width=True,
-        )
+        df_table = df_filtered.sort_values("DateTime", ascending=False).copy()
+
+        if "DateTime" in df_table.columns:
+          df_table["Dátum"] = df_table["DateTime"].dt.strftime("%d.%m.%Y")
+          time_cols = [
+              c
+              for c in df_table.columns
+              if any(
+                  k in c.lower() for k in ["čas", "cas", "time", "datetime"]
+              )
+              and c != "DateTime"
+          ]
+          df_table = df_table.drop(
+              columns=["DateTime"] + time_cols, errors="ignore"
+          )
+          cols = ["Dátum"] + [
+              c for c in df_table.columns if c != "Dátum"
+          ]
+          df_table = df_table[cols]
+
+        st.dataframe(df_table, use_container_width=True)
 
     else:
       st.warning("Pre zvolené obdobie nie sú k dispozícii žiadne dáta.")
