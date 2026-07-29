@@ -879,14 +879,6 @@ if df is not None and not df.empty:
       ),
       None,
   )
-  p_col = next(
-      (
-          c
-          for c in df.columns
-          if any(k in c.lower() for k in ["tlak", "bar", "pressure"])
-      ),
-      None,
-  )
   h_col = next(
       (
           c
@@ -977,16 +969,6 @@ if df is not None and not df.empty:
         if t_min_col and not df_filtered[t_min_col].isna().all()
         else 0
     )
-    max_press = (
-        df_filtered[p_col].max()
-        if p_col and not df_filtered[p_col].isna().all()
-        else 0
-    )
-    min_press = (
-        df_filtered[p_col].min()
-        if p_col and not df_filtered[p_col].isna().all()
-        else 0
-    )
 
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🔴 Max Teplota", f"{max_temp:.1f} °C")
@@ -994,11 +976,9 @@ if df is not None and not df.empty:
     col3.metric("🟣 Max Vietor", f"{max_wind:.1f} km/h")
     col4.metric("🔵 Celkové Zrážky", f"{total_rain:.1f} mm")
 
-    ecol1, ecol2, ecol3, ecol4 = st.columns(4)
+    ecol1, ecol2 = st.columns(2)
     ecol1.metric("🔵 Min Teplota", f"{min_temp:.1f} °C")
-    ecol2.metric("📈 Najvyšší Tlak", f"{max_press:.1f} hPa")
-    ecol3.metric("📉 Najnižší Tlak", f"{min_press:.1f} hPa")
-    ecol4.metric("📅 Počet záznamov", f"{len(df_filtered)}")
+    ecol2.metric("📅 Počet záznamov", f"{len(df_filtered)}")
 
     st.markdown("---")
 
@@ -1026,24 +1006,6 @@ if df is not None and not df.empty:
         title="🌡️ Vývoj teploty v čase", height=320, template="plotly_white"
     )
     st.plotly_chart(fig_temp, use_container_width=True)
-
-    if p_col:
-      fig_press = go.Figure()
-      fig_press.add_trace(
-          go.Scatter(
-              x=df_filtered["DateTime"],
-              y=df_filtered[p_col],
-              name="Tlak",
-              line=dict(color="#9b59b6", width=2),
-              fill="tozeroy",
-          )
-      )
-      fig_press.update_layout(
-          title="📈 Vývoj atmosférického tlaku",
-          height=280,
-          template="plotly_white",
-      )
-      st.plotly_chart(fig_press, use_container_width=True)
 
     if w_max_col:
       fig_wind = go.Figure()
