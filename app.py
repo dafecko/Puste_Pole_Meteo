@@ -6,17 +6,10 @@ import streamlit as st
 # Nastavenie stránky na šírku
 st.set_page_config(page_title="Meteo Web Dashboard - Pusté Pole", layout="wide")
 
-# Vlastné CSS štýly pre grafické karty aktuálneho stavu (teplomer, ciferníky)
+# Vlastné CSS štýly pre grafické karty aktuálneho stavu
 st.markdown(
     """
     <style>
-    .grid-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 15px;
-        max-width: 100%;
-        margin: 0 auto;
-    }
     .weather-card {
         background: #ffffff;
         border-radius: 12px;
@@ -26,22 +19,23 @@ st.markdown(
         flex-direction: column;
         align-items: center;
         text-align: center;
+        margin-bottom: 10px;
     }
     .card-title {
-        font-size: 1.1em;
+        font-size: 1.0em;
         font-weight: 600;
         color: #555;
         margin-bottom: 10px;
     }
     .main-value {
-        font-size: 1.8em;
+        font-size: 1.6em;
         font-weight: bold;
         color: #2c3e50;
-        margin: 5px 0 0 0;
+        margin: 8px 0 0 0;
     }
     .thermometer-box, .rain-box {
-        height: 110px;
-        width: 20px;
+        height: 100px;
+        width: 18px;
         background: #e0e0e0;
         border-radius: 10px;
         position: relative;
@@ -63,8 +57,8 @@ st.markdown(
         transition: height 0.5s ease;
     }
     .gauge-circle {
-        width: 110px;
-        height: 110px;
+        width: 100px;
+        height: 100px;
         border-radius: 50%;
         border: 5px solid #3498db;
         position: relative;
@@ -79,14 +73,14 @@ st.markdown(
         bottom: 50%;
         left: 50%;
         width: 3px;
-        height: 35px;
+        height: 32px;
         background: #e74c3c;
         transform-origin: bottom center;
         transform: translateX(-50%) rotate(0deg);
     }
     .gauge-center-dot {
-        width: 10px;
-        height: 10px;
+        width: 8px;
+        height: 8px;
         background: #333;
         border-radius: 50%;
         z-index: 2;
@@ -192,9 +186,12 @@ if os.path.exists(CSV_AKTUALNE):
       uv_angle = (uv_val / 12) * 270 - 135
       rain_pct = min(100, max(0, (r_val / 50) * 100))
 
-      html_current = f"""
-            <div class="grid-container">
-                <!-- Teplota -->
+      # Vykreslenie pomocou natívnych 5 stĺpcov Streamlitu
+      col1, col2, col3, col4, col5 = st.columns(5)
+
+      with col1:
+        st.markdown(
+            f"""
                 <div class="weather-card">
                     <div class="card-title">Teplota</div>
                     <div class="thermometer-box">
@@ -202,8 +199,13 @@ if os.path.exists(CSV_AKTUALNE):
                     </div>
                     <div class="main-value">{t_val:.1f} °C</div>
                 </div>
+                """,
+            unsafe_allow_html=True,
+        )
 
-                <!-- Vlhkosť -->
+      with col2:
+        st.markdown(
+            f"""
                 <div class="weather-card">
                     <div class="card-title">Vlhkosť vzduchu</div>
                     <div class="gauge-circle">
@@ -212,8 +214,13 @@ if os.path.exists(CSV_AKTUALNE):
                     </div>
                     <div class="main-value">{h_val:.0f} %</div>
                 </div>
+                """,
+            unsafe_allow_html=True,
+        )
 
-                <!-- Vietor -->
+      with col3:
+        st.markdown(
+            f"""
                 <div class="weather-card">
                     <div class="card-title">Rýchlosť vetra</div>
                     <div class="gauge-circle">
@@ -222,8 +229,13 @@ if os.path.exists(CSV_AKTUALNE):
                     </div>
                     <div class="main-value">{w_val:.1f} km/h</div>
                 </div>
+                """,
+            unsafe_allow_html=True,
+        )
 
-                <!-- Zrážky -->
+      with col4:
+        st.markdown(
+            f"""
                 <div class="weather-card">
                     <div class="card-title">Zrážky</div>
                     <div class="rain-box">
@@ -231,8 +243,13 @@ if os.path.exists(CSV_AKTUALNE):
                     </div>
                     <div class="main-value">{r_val:.1f} mm</div>
                 </div>
+                """,
+            unsafe_allow_html=True,
+        )
 
-                <!-- UV Index -->
+      with col5:
+        st.markdown(
+            f"""
                 <div class="weather-card">
                     <div class="card-title">UV index</div>
                     <div class="gauge-circle">
@@ -241,9 +258,10 @@ if os.path.exists(CSV_AKTUALNE):
                     </div>
                     <div class="main-value">{uv_val:.1f}</div>
                 </div>
-            </div>
-            """
-      st.markdown(html_current, unsafe_allow_html=True)
+                """,
+            unsafe_allow_html=True,
+        )
+
     else:
       st.warning("Súbor 'meteo_aktualne.csv' je prázdny.")
   except Exception as e:
@@ -402,7 +420,6 @@ else:
         else 0
     )
 
-    # KPI karty pre vybrané obdobie
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🔴 Max Teplota (Obdobie)", f"{max_temp:.1f} °C")
     col2.metric("🟠 Priemerná Teplota (Obdobie)", f"{avg_temp:.1f} °C")
