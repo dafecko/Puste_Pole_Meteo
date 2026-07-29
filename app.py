@@ -6,7 +6,7 @@ import streamlit as st
 # Nastavenie stránky na šírku
 st.set_page_config(page_title="Meteo Web Dashboard - Pusté Pole", layout="wide")
 
-# Vlastné CSS štýly pre grafické karty aktuálneho stavu
+# Vlastné CSS štýly pre grafické karty a ciferníky so stupnicou
 st.markdown(
     """
     <style>
@@ -57,16 +57,17 @@ st.markdown(
         transition: height 0.5s ease;
     }
     .gauge-circle {
-        width: 100px;
-        height: 100px;
+        width: 105px;
+        height: 105px;
         border-radius: 50%;
-        border: 5px solid #3498db;
+        border: 4px solid #3498db;
         position: relative;
         display: flex;
         align-items: center;
         justify-content: center;
-        background: radial-gradient(circle, #ffffff 60%, #f0f0f0 100%);
+        background: radial-gradient(circle, #ffffff 60%, #f4f6f9 100%);
         margin: 5px auto;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
     }
     .gauge-needle {
         position: absolute;
@@ -77,13 +78,48 @@ st.markdown(
         background: #e74c3c;
         transform-origin: bottom center;
         transform: translateX(-50%) rotate(0deg);
+        z-index: 3;
     }
     .gauge-center-dot {
         width: 8px;
         height: 8px;
         background: #333;
         border-radius: 50%;
-        z-index: 2;
+        z-index: 4;
+    }
+    .scale-min {
+        position: absolute;
+        bottom: 16px;
+        left: 14px;
+        font-size: 9px;
+        font-weight: 700;
+        color: #7f8c8d;
+    }
+    .scale-mid {
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 9px;
+        font-weight: 700;
+        color: #7f8c8d;
+    }
+    .scale-max {
+        position: absolute;
+        bottom: 16px;
+        right: 14px;
+        font-size: 9px;
+        font-weight: 700;
+        color: #7f8c8d;
+    }
+    .scale-unit {
+        position: absolute;
+        bottom: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 8px;
+        font-weight: 600;
+        color: #b2bec3;
     }
     </style>
 """,
@@ -179,14 +215,14 @@ if os.path.exists(CSV_AKTUALNE):
       r_val = get_val(akt, ["zrážky", "zrazky", "rain"])
       uv_val = get_val(akt, ["uv", "uvi"])
 
-      # Výpočty pre grafické prvky
+      # Výpočty pre grafické prvky (rozsah 270 stupňov pre ciferníky)
       temp_pct = min(100, max(0, ((t_val + 20) / 70) * 100))
-      wind_angle = (w_val / 50) * 270 - 135
-      hum_angle = (h_val / 100) * 270 - 135
-      uv_angle = (uv_val / 12) * 270 - 135
       rain_pct = min(100, max(0, (r_val / 50) * 100))
 
-      # Vykreslenie pomocou natívnych 5 stĺpcov Streamlitu
+      hum_angle = (h_val / 100) * 270 - 135
+      wind_angle = min(135, max(-135, (w_val / 50) * 270 - 135))
+      uv_angle = min(135, max(-135, (uv_val / 12) * 270 - 135))
+
       col1, col2, col3, col4, col5 = st.columns(5)
 
       with col1:
@@ -209,6 +245,10 @@ if os.path.exists(CSV_AKTUALNE):
                 <div class="weather-card">
                     <div class="card-title">Vlhkosť vzduchu</div>
                     <div class="gauge-circle">
+                        <div class="scale-min">0</div>
+                        <div class="scale-mid">50</div>
+                        <div class="scale-max">100</div>
+                        <div class="scale-unit">%</div>
                         <div class="gauge-needle" style="transform: translateX(-50%) rotate({hum_angle}deg);"></div>
                         <div class="gauge-center-dot"></div>
                     </div>
@@ -224,6 +264,10 @@ if os.path.exists(CSV_AKTUALNE):
                 <div class="weather-card">
                     <div class="card-title">Rýchlosť vetra</div>
                     <div class="gauge-circle">
+                        <div class="scale-min">0</div>
+                        <div class="scale-mid">25</div>
+                        <div class="scale-max">50</div>
+                        <div class="scale-unit">km/h</div>
                         <div class="gauge-needle" style="transform: translateX(-50%) rotate({wind_angle}deg);"></div>
                         <div class="gauge-center-dot"></div>
                     </div>
@@ -253,6 +297,10 @@ if os.path.exists(CSV_AKTUALNE):
                 <div class="weather-card">
                     <div class="card-title">UV index</div>
                     <div class="gauge-circle">
+                        <div class="scale-min">0</div>
+                        <div class="scale-mid">6</div>
+                        <div class="scale-max">12</div>
+                        <div class="scale-unit">UV</div>
                         <div class="gauge-needle" style="transform: translateX(-50%) rotate({uv_angle}deg);"></div>
                         <div class="gauge-center-dot"></div>
                     </div>
