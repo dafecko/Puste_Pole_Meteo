@@ -6,7 +6,7 @@ import streamlit as st
 # Nastavenie stránky na šírku
 st.set_page_config(page_title="Meteo Web Dashboard - Pusté Pole", layout="wide")
 
-# Vlastné CSS štýly pre grafické karty, detailné stupnice a farebné škály ciferníkov
+# Vlastné CSS štýly pre grafické karty, detailné stupnice a opravené farebné škály ciferníkov
 st.markdown(
     """
     <style>
@@ -90,10 +90,10 @@ st.markdown(
         box-shadow: inset 0 2px 4px rgba(0,0,0,0.05), 0 2px 6px rgba(0,0,0,0.05);
     }
     
-    /* Farebné okraje pre jednotlivé typy ciferníkov (270-stupňové oblúky) */
+    /* Farebné okraje pre jednotlivé typy ciferníkov (opravený plný 270-stupňový rozsah) */
     .gauge-hum {
         border: 5px solid transparent;
-        background-image: linear-gradient(#ffffff, #ffffff), conic-gradient(from 225deg, #e67e22 0deg, #2ecc71 100deg, #3498db 200deg, transparent 200deg);
+        background-image: linear-gradient(#ffffff, #ffffff), conic-gradient(from 225deg, #e67e22 0deg, #2ecc71 135deg, #3498db 270deg, transparent 270deg);
         background-origin: border-box;
         background-clip: content-box, border-box;
     }
