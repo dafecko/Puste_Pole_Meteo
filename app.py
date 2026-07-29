@@ -577,7 +577,6 @@ with tab_aktualne:
 
   st.subheader("⚡ Aktuálny stav počasie")
 
-  # Zjednodušený vrchný prehľadový banner (bez duplicitných podrobných čísel)
   st.markdown(
       f"""
         <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
@@ -924,6 +923,11 @@ with tab_historia:
           if t_max_col and not df_filtered[t_max_col].isna().all()
           else 0
       )
+      min_temp = (
+          df_filtered[t_min_col].min()
+          if t_min_col and not df_filtered[t_min_col].isna().all()
+          else 0
+      )
       avg_temp = (
           df_filtered[t_avg_col].mean()
           if t_avg_col and not df_filtered[t_avg_col].isna().all()
@@ -939,109 +943,123 @@ with tab_historia:
           if r_col and not df_filtered[r_col].isna().all()
           else 0
       )
-      min_temp = (
-          df_filtered[t_min_col].min()
-          if t_min_col and not df_filtered[t_min_col].isna().all()
+      max_rain = (
+          df_filtered[r_col].max()
+          if r_col and not df_filtered[r_col].isna().all()
           else 0
       )
 
       col1, col2, col3, col4 = st.columns(4)
       col1.metric("🔴 Max Teplota", f"{max_temp:.1f} °C")
-      col2.metric("🟠 Priemerná Teplota", f"{avg_temp:.1f} °C")
-      col3.metric("🟣 Max Vietor", f"{max_wind:.1f} km/h")
-      col4.metric("🔵 Celkové Zrážky", f"{total_rain:.1f} mm")
+      col2.metric("🔵 Min Teplota", f"{min_temp:.1f} °C")
+      col3.metric("🟠 Priemerná Teplota", f"{avg_temp:.1f} °C")
+      col4.metric("🟣 Max Vietor", f"{max_wind:.1f} km/h")
 
-      ecol1, ecol2 = st.columns(2)
-      ecol1.metric("🔵 Min Teplota", f"{min_temp:.1f} °C")
-      ecol2.metric("📅 Počet záznamov", f"{len(df_filtered)}")
+      ecol1, ecol2, ecol3 = st.columns(3)
+      ecol1.metric("🌧️ Celkové Zrážky", f"{total_rain:.1f} mm")
+      ecol2.metric("🌧️ Maximálne Zrážky", f"{max_rain:.1f} mm")
+      ecol3.metric("📅 Počet záznamov", f"{len(df_filtered)}")
 
       st.markdown("---")
 
-      # --- GRAFY USPORIADANÉ DO MRIEŽKY (2 STĹPCE) ---
-      gcol1, gcol2 = st.columns(2)
+      # --- VOĽBA ZOBRAZENIA: GRAFY ALEBO TABUĽKA ---
+      view_mode = st.radio(
+          "Zvoliť spôsob zobrazenia údajov:",
+          ["📈 Grafy", "📋 Tabuľka"],
+          horizontal=True,
+      )
 
-      with gcol1:
-        fig_temp = go.Figure()
-        if t_max_col:
-          fig_temp.add_trace(
-              go.Scatter(
-                  x=df_filtered["DateTime"],
-                  y=df_filtered[t_max_col],
-                  name="Max Teplota",
-                  line=dict(color="#d9534f", width=2),
-              )
+      if view_mode == "📈 Grafy":
+        gcol1, gcol2 = st.columns(2)
+
+        with gcol1:
+          fig_temp = go.Figure()
+          if t_max_col:
+            fig_temp.add_trace(
+                go.Scatter(
+                    x=df_filtered["DateTime"],
+                    y=df_filtered[t_max_col],
+                    name="Max Teplota",
+                    line=dict(color="#d9534f", width=2),
+                )
+            )
+          if t_min_col:
+            fig_temp.add_trace(
+                go.Scatter(
+                    x=df_filtered["DateTime"],
+                    y=df_filtered[t_min_col],
+                    name="Min Teplota",
+                    line=dict(color="#337ab7", width=2),
+                )
+            )
+          fig_temp.update_layout(
+              title="🌡️ Vývoj teploty v čase",
+              height=280,
+              template="plotly_white",
+              margin=dict(l=20, r=20, t=40, b=20),
           )
-        if t_min_col:
-          fig_temp.add_trace(
-              go.Scatter(
-                  x=df_filtered["DateTime"],
-                  y=df_filtered[t_min_col],
-                  name="Min Teplota",
-                  line=dict(color="#337ab7", width=2),
-              )
-          )
-        fig_temp.update_layout(
-            title="🌡️ Vývoj teploty v čase",
-            height=280,
-            template="plotly_white",
-            margin=dict(l=20, r=20, t=40, b=20),
+          st.plotly_chart(fig_temp, use_container_width=True)
+
+          if r_col:
+            fig_rain = go.Figure()
+            fig_rain.add_trace(
+                go.Bar(
+                    x=df_filtered["DateTime"],
+                    y=df_filtered[r_col],
+                    name="Zrážky",
+                    marker_color="#3498db",
+                )
+            )
+            fig_rain.update_layout(
+                title="🌧️ Úhrn zrážok v čase",
+                height=280,
+                template="plotly_white",
+                margin=dict(l=20, r=20, t=40, b=20),
+            )
+            st.plotly_chart(fig_rain, use_container_width=True)
+
+        with gcol2:
+          if w_max_col:
+            fig_wind = go.Figure()
+            fig_wind.add_trace(
+                go.Scatter(
+                    x=df_filtered["DateTime"],
+                    y=df_filtered[w_max_col],
+                    name="Max Rýchlosť vetra",
+                    line=dict(color="#f39c12", width=2),
+                )
+            )
+            fig_wind.update_layout(
+                title="💨 Maximálna rýchlosť vetra",
+                height=280,
+                template="plotly_white",
+                margin=dict(l=20, r=20, t=40, b=20),
+            )
+            st.plotly_chart(fig_wind, use_container_width=True)
+
+          if h_col:
+            fig_hum = go.Figure()
+            fig_hum.add_trace(
+                go.Scatter(
+                    x=df_filtered["DateTime"],
+                    y=df_filtered[h_col],
+                    name="Vlhkosť",
+                    line=dict(color="#2ecc71", width=2),
+                )
+            )
+            fig_hum.update_layout(
+                title="💧 Vývoj vlhkosti vzduchu",
+                height=280,
+                template="plotly_white",
+                margin=dict(l=20, r=20, t=40, b=20),
+            )
+            st.plotly_chart(fig_hum, use_container_width=True)
+      else:
+        st.subheader("📋 Podrobná tabuľka dát")
+        st.dataframe(
+            df_filtered.sort_values("DateTime", ascending=False),
+            use_container_width=True,
         )
-        st.plotly_chart(fig_temp, use_container_width=True)
-
-        if r_col:
-          fig_rain = go.Figure()
-          fig_rain.add_trace(
-              go.Bar(
-                  x=df_filtered["DateTime"],
-                  y=df_filtered[r_col],
-                  name="Zrážky",
-                  marker_color="#3498db",
-              )
-          )
-          fig_rain.update_layout(
-              title="🌧️ Úhrn zrážok v čase",
-              height=280,
-              template="plotly_white",
-              margin=dict(l=20, r=20, t=40, b=20),
-          )
-          st.plotly_chart(fig_rain, use_container_width=True)
-
-      with gcol2:
-        if w_max_col:
-          fig_wind = go.Figure()
-          fig_wind.add_trace(
-              go.Scatter(
-                  x=df_filtered["DateTime"],
-                  y=df_filtered[w_max_col],
-                  name="Max Rýchlosť vetra",
-                  line=dict(color="#f39c12", width=2),
-              )
-          )
-          fig_wind.update_layout(
-              title="💨 Maximálna rýchlosť vetra",
-              height=280,
-              template="plotly_white",
-              margin=dict(l=20, r=20, t=40, b=20),
-          )
-          st.plotly_chart(fig_wind, use_container_width=True)
-
-        if h_col:
-          fig_hum = go.Figure()
-          fig_hum.add_trace(
-              go.Scatter(
-                  x=df_filtered["DateTime"],
-                  y=df_filtered[h_col],
-                  name="Vlhkosť",
-                  line=dict(color="#2ecc71", width=2),
-              )
-          )
-          fig_hum.update_layout(
-              title="💧 Vývoj vlhkosti vzduchu",
-              height=280,
-              template="plotly_white",
-              margin=dict(l=20, r=20, t=40, b=20),
-          )
-          st.plotly_chart(fig_hum, use_container_width=True)
 
     else:
       st.warning("Pre zvolené obdobie nie sú k dispozícii žiadne dáta.")
