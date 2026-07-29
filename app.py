@@ -673,6 +673,14 @@ if df is not None and not df.empty:
       ),
       None,
   )
+  h_col = next(
+      (
+          c
+          for c in df.columns
+          if any(k in c.lower() for k in ["vlhk", "hum"])
+      ),
+      None,
+  )
 
   # --- 1. ABSOLÚTNE REKORDY STANICE (Celá história od 1.7.2026, ignorujú filter) ---
   st.subheader("🏆 Absolútne rekordy stanice (od 1. 7. 2026)")
@@ -776,27 +784,104 @@ if df is not None and not df.empty:
     ecol1.metric("🔵 Min Teplota", f"{min_temp:.1f} °C")
     ecol2.metric("📈 Najvyšší Tlak", f"{max_press:.1f} hPa")
     ecol3.metric("📉 Najnižší Tlak", f"{min_press:.1f} hPa")
-    ecol4.metric(
-        "📅 Počet záznamov", f"{len(df_filtered)}"
-    )  # Extra prehľadná metrika
+    ecol4.metric("📅 Počet záznamov", f"{len(df_filtered)}")
 
     st.markdown("---")
 
-    # Graf vývoja teploty
+    # --- GRAFY PRE VYBRANÉ OBDOBIE ---
+
+    # 1. Graf teploty
     fig_temp = go.Figure()
     if t_max_col:
       fig_temp.add_trace(
           go.Scatter(
               x=df_filtered["DateTime"],
               y=df_filtered[t_max_col],
-              name="Teplota",
+              name="Max Teplota",
               line=dict(color="#d9534f", width=2),
           )
       )
+    if t_min_col:
+      fig_temp.add_trace(
+          go.Scatter(
+              x=df_filtered["DateTime"],
+              y=df_filtered[t_min_col],
+              name="Min Teplota",
+              line=dict(color="#337ab7", width=2),
+          )
+      )
     fig_temp.update_layout(
-        title="Vývoj teploty v čase", height=320, template="plotly_white"
+        title="🌡️ Vývoj teploty v čase", height=320, template="plotly_white"
     )
     st.plotly_chart(fig_temp, use_container_width=True)
+
+    # 2. Graf atmosférického tlaku
+    if p_col:
+      fig_press = go.Figure()
+      fig_press.add_trace(
+          go.Scatter(
+              x=df_filtered["DateTime"],
+              y=df_filtered[p_col],
+              name="Tlak",
+              line=dict(color="#9b59b6", width=2),
+              fill="tozeroy",
+          )
+      )
+      fig_press.update_layout(
+          title="📈 Vývoj atmosférického tlaku",
+          height=280,
+          template="plotly_white",
+      )
+      st.plotly_chart(fig_press, use_container_width=True)
+
+    # 3. Graf vetra
+    if w_max_col:
+      fig_wind = go.Figure()
+      fig_wind.add_trace(
+          go.Bar(
+              x=df_filtered["DateTime"],
+              y=df_filtered[w_max_col],
+              name="Rýchlosť vetra",
+              marker_color="#f39c12",
+          )
+      )
+      fig_wind.update_layout(
+          title="💨 Rýchlosť vetra v čase", height=280, template="plotly_white"
+      )
+      st.plotly_chart(fig_wind, use_container_width=True)
+
+    # 4. Graf zrážok
+    if r_col:
+      fig_rain = go.Figure()
+      fig_rain.add_trace(
+          go.Bar(
+              x=df_filtered["DateTime"],
+              y=df_filtered[r_col],
+              name="Zrážky",
+              marker_color="#3498db",
+          )
+      )
+      fig_rain.update_layout(
+          title="🌧️ Úhrn zrážok v čase", height=280, template="plotly_white"
+      )
+      st.plotly_chart(fig_rain, use_container_width=True)
+
+    # 5. Graf vlhkosti (ak existuje stĺpec)
+    if h_col:
+      fig_hum = go.Figure()
+      fig_hum.add_trace(
+          go.Scatter(
+              x=df_filtered["DateTime"],
+              y=df_filtered[h_col],
+              name="Vlhkosť",
+              line=dict(color="#2ecc71", width=2),
+          )
+      )
+      fig_hum.update_layout(
+          title="💧 Vývoj vlhkosti vzduchu", height=280, template="plotly_white"
+      )
+      st.plotly_chart(fig_hum, use_container_width=True)
+
   else:
     st.warning("Pre zvolené obdobie nie sú k dispozícii žiadne dáta.")
 else:
