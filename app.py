@@ -181,40 +181,51 @@ LAT, LON = 49.18, 20.85
 
 # --- POMOCNÉ FUNKCIE ---
 def deg_to_cardinal(deg):
-  """Prepočíta stupne na slovenské svetové strany bez zobrazenia stupňov."""
+  """Absolútne spoľahlivý prevod na svetovú stranu bez stupňov."""
   if pd.isna(deg) or deg == "-" or deg == "":
     return "-"
 
-  deg_str = str(deg).replace("°", "").strip()
+  # Vyčistíme reťazec od ° a medzier
+  deg_str = str(deg).replace("°", "").replace("deg", "").strip()
   try:
     d = float(deg_str)
   except ValueError:
     return deg_str.upper()
 
-  directions = [
-      ("S", 0, 11.25),
-      ("SSV", 11.25, 33.75),
-      ("SV", 33.75, 56.25),
-      ("VSV", 56.25, 78.75),
-      ("V", 78.75, 101.25),
-      ("VJV", 101.25, 123.75),
-      ("JV", 123.75, 146.25),
-      ("JJV", 146.25, 168.75),
-      ("J", 168.75, 191.25),
-      ("JJZ", 191.25, 213.75),
-      ("JZ", 213.75, 236.25),
-      ("ZJZ", 236.25, 258.75),
-      ("Z", 258.75, 281.25),
-      ("ZSZ", 281.25, 303.75),
-      ("SZ", 303.75, 326.25),
-      ("SSZ", 326.25, 348.75),
-      ("S", 348.75, 360),
-  ]
-
   d = d % 360
-  for name, low, high in directions:
-    if low <= d < high:
-      return name
+
+  if 348.75 <= d or d < 11.25:
+    return "S"
+  elif 11.25 <= d < 33.75:
+    return "SSV"
+  elif 33.75 <= d < 56.25:
+    return "SV"
+  elif 56.25 <= d < 78.75:
+    return "VSV"
+  elif 78.75 <= d < 101.25:
+    return "V"
+  elif 101.25 <= d < 123.75:
+    return "VJV"
+  elif 123.75 <= d < 146.25:
+    return "JV"
+  elif 146.25 <= d < 168.75:
+    return "JJV"
+  elif 168.75 <= d < 191.25:
+    return "J"
+  elif 191.25 <= d < 213.75:
+    return "JJZ"
+  elif 213.75 <= d < 236.25:
+    return "JZ"
+  elif 236.25 <= d < 258.75:
+    return "ZJZ"
+  elif 258.75 <= d < 281.25:
+    return "Z"
+  elif 281.25 <= d < 303.75:
+    return "ZSZ"
+  elif 303.75 <= d < 326.25:
+    return "SZ"
+  elif 326.25 <= d < 348.75:
+    return "SSZ"
   return "S"
 
 
@@ -423,7 +434,7 @@ if os.path.exists(CSV_AKTUALNE):
       r_val = get_val(akt, ["zrážky", "zrazky", "rain"])
       uv_val = get_val(akt, ["uv", "uvi"])
 
-      # Dôsledný prepočet na čistú svetovú stranu bez akýchkoľvek stupňov
+      # Dôsledný prepočet na čistú svetovú stranu
       w_cardinal = deg_to_cardinal(w_dir_raw)
 
       if t_val <= 10.0 and chill_val != 0:
