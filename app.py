@@ -530,6 +530,9 @@ else:
         else 0
     )
 
+    # TU JE PRIDANÝ JASAN NADPIS PRE SEKCIU ŠTATISTÍK
+    st.subheader("📊 Štatistiky a vývoj za vybrané obdobie")
+
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("🔴 Max Teplota (Obdobie)", f"{max_temp:.1f} °C")
     col2.metric("🟠 Priemerná Teplota (Obdobie)", f"{avg_temp:.1f} °C")
