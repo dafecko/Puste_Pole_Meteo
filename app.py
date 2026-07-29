@@ -30,7 +30,7 @@ st.markdown(
         font-size: 1.0em;
         font-weight: 600;
         color: #555;
-        margin-bottom: 10px;
+        margin-bottom: 5px;
     }
     .main-value {
         font-size: 1.6em;
@@ -381,7 +381,7 @@ else:
 
 st.markdown("---")
 
-# 2. SEKCIA: PREDPOVEĎ POČASIA (Presunutá sem)
+# 2. SEKCIA: PREDPOVEĎ POČASIA S DYNAMICKÝMI IKONAMI
 st.subheader("🔮 Predpoveď počasia na najbližšie dni")
 
 
@@ -397,6 +397,26 @@ def get_weather_forecast(lat, lon):
     return None
 
 
+def get_weather_icon(code):
+  # WMO Weather codes pre Open-Meteo
+  if code == 0:
+    return "☀️"  # Jasno
+  elif code in [1, 2]:
+    return "⛅"  # Polooblačno
+  elif code == 3:
+    return "☁️"  # Oblačno
+  elif code in [45, 48]:
+    return "🌫️"  # Hmla
+  elif code in [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82]:
+    return "🌧️"  # Dážď / Prehánky
+  elif code in [71, 73, 75, 77, 85, 86]:
+    return "❄️"  # Sneh
+  elif code in [95, 96, 99]:
+    return "⛈️"  # Búrka
+  else:
+    return "🌤️"  # Predvolené
+
+
 LAT, LON = 49.18, 20.85
 forecast_data = get_weather_forecast(LAT, LON)
 
@@ -405,6 +425,7 @@ if forecast_data:
   t_max = forecast_data["temperature_2m_max"]
   t_min = forecast_data["temperature_2m_min"]
   rain = forecast_data["precipitation_sum"]
+  w_codes = forecast_data["weathercode"]
 
   num_days = len(days)
   cols = st.columns(num_days)
@@ -413,14 +434,16 @@ if forecast_data:
     with cols[i]:
       d_parts = days[i].split("-")
       formatted_date = f"{int(d_parts[2])}.{int(d_parts[1])}."
+      icon = get_weather_icon(w_codes[i])
 
       st.markdown(
           f"""
             <div class="weather-card">
                 <div class="card-title">{formatted_date}</div>
-                <div style="font-size: 0.85em; color: #e74c3c; margin: 4px 0;">Max: <b>{t_max[i]:.1f}°C</b></div>
-                <div style="font-size: 0.85em; color: #3498db; margin: 4px 0;">Min: <b>{t_min[i]:.1f}°C</b></div>
-                <div style="font-size: 0.85em; color: #7f8c8d; margin-top: 6px;">🌧️ {rain[i]:.1f} mm</div>
+                <div style="font-size: 1.8em; margin: 4px 0;">{icon}</div>
+                <div style="font-size: 0.85em; color: #e74c3c; margin: 2px 0;">Max: <b>{t_max[i]:.1f}°C</b></div>
+                <div style="font-size: 0.85em; color: #3498db; margin: 2px 0;">Min: <b>{t_min[i]:.1f}°C</b></div>
+                <div style="font-size: 0.8em; color: #7f8c8d; margin-top: 6px;">🌧️ {rain[i]:.1f} mm</div>
             </div>
             """,
           unsafe_allow_html=True,
