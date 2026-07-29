@@ -6,6 +6,96 @@ import streamlit as st
 # Nastavenie stránky na šírku
 st.set_page_config(page_title="Meteo Web Dashboard - Pusté Pole", layout="wide")
 
+# Vlastné CSS štýly pre grafické karty aktuálneho stavu (teplomer, ciferníky)
+st.markdown(
+    """
+    <style>
+    .grid-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 15px;
+        max-width: 100%;
+        margin: 0 auto;
+    }
+    .weather-card {
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        padding: 15px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    .card-title {
+        font-size: 1.1em;
+        font-weight: 600;
+        color: #555;
+        margin-bottom: 10px;
+    }
+    .main-value {
+        font-size: 1.8em;
+        font-weight: bold;
+        color: #2c3e50;
+        margin: 5px 0 0 0;
+    }
+    .thermometer-box, .rain-box {
+        height: 110px;
+        width: 20px;
+        background: #e0e0e0;
+        border-radius: 10px;
+        position: relative;
+        overflow: hidden;
+        margin: 5px auto;
+    }
+    .thermometer-fill {
+        position: absolute;
+        bottom: 0;
+        width: 100%;
+        background: linear-gradient(to top, #3498db, #e74c3c);
+        transition: height 0.5s ease;
+    }
+    .rain-fill {
+        position: absolute;
+        bottom: 0;
+        width: 100%;
+        background: #3498db;
+        transition: height 0.5s ease;
+    }
+    .gauge-circle {
+        width: 110px;
+        height: 110px;
+        border-radius: 50%;
+        border: 5px solid #3498db;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle, #ffffff 60%, #f0f0f0 100%);
+        margin: 5px auto;
+    }
+    .gauge-needle {
+        position: absolute;
+        bottom: 50%;
+        left: 50%;
+        width: 3px;
+        height: 35px;
+        background: #e74c3c;
+        transform-origin: bottom center;
+        transform: translateX(-50%) rotate(0deg);
+    }
+    .gauge-center-dot {
+        width: 10px;
+        height: 10px;
+        background: #333;
+        border-radius: 50%;
+        z-index: 2;
+    }
+    </style>
+""",
+    unsafe_allow_html=True,
+)
+
 CSV_FILE = "meteo_puste_pole_v2.csv"
 CSV_AKTUALNE = "meteo_aktualne.csv"
 
@@ -23,7 +113,6 @@ def load_data():
       st.error(f"Nepodarilo sa načítať historický CSV súbor: {e}")
       return None
 
-  # Hľadanie stĺpcov pre dátum a čas
   col_datum = next(
       (c for c in df.columns if "dátum" in c.lower() or "datum" in c.lower()),
       None,
@@ -42,7 +131,6 @@ def load_data():
   )
   df = df.dropna(subset=["DateTime"]).sort_values("DateTime")
 
-  # Bezpečná konverzia všetkých číselných stĺpcov na čísla
   for col in df.columns:
     if col not in [col_datum, col_cas, "DateTime"]:
       df[col] = pd.to_numeric(
@@ -55,41 +143,7 @@ def load_data():
 # --- HLAVNÁ STRÁNKA ---
 st.title("🌤️ Meteorologický Web Dashboard - Pusté Pole")
 
-
-# Funkcia pre ciferníky (gauges)
-def create_gauge(val, title, max_val, unit, min_val=0):
-  try:
-    numeric_val = float(val)
-  except:
-    numeric_val = 0.0
-
-  fig = go.Figure(
-      go.Indicator(
-          mode="gauge+number",
-          value=numeric_val,
-          title={
-              "text": f"{title} ({unit})" if unit else title,
-              "font": {"size": 16, "color": "#31333F"},
-          },
-          number={"font": {"size": 26}},
-          gauge={
-              "axis": {
-                  "range": [min_val, max_val],
-                  "tickwidth": 1,
-                  "tickcolor": "gray",
-              },
-              "bar": {"color": "#0284c7"},
-              "bgcolor": "#f8fafc",
-              "borderwidth": 1,
-              "bordercolor": "#cbd5e1",
-          },
-      )
-  )
-  fig.update_layout(height=240, margin=dict(l=20, r=20, t=50, b=10))
-  return fig
-
-
-# 1. SEKCIA: AKTUÁLNE ÚDAJE
+# 1. SEKCIA: AKTUÁLNE ÚDAJE (pomocou HTML/CSS kariet, teplomerov a ciferníkov)
 st.subheader("⚡ Aktuálny stav počasia")
 
 if os.path.exists(CSV_AKTUALNE):
@@ -106,7 +160,6 @@ if os.path.exists(CSV_AKTUALNE):
 
       st.caption(f"📅 Posledná aktualizácia zo stanice: {datum_str} o {cas_str}")
 
-
       def get_val(df_row, keywords):
         for k in keywords:
           for col in df_row.index:
@@ -118,43 +171,76 @@ if os.path.exists(CSV_AKTUALNE):
                 return val
         return 0.0
 
-
       t_val = get_val(akt, ["teplota", "temp"])
       h_val = get_val(akt, ["vlhkosť", "vlhkost", "hum"])
       w_val = get_val(akt, ["vietor", "wind", "wspd"])
       r_val = get_val(akt, ["zrážky", "zrazky", "rain"])
       uv_val = get_val(akt, ["uv", "uvi"])
 
-      # Rozdelenie do dvoch riadkov pre lepšiu prehľadnosť (3 hore, 2 dole)
-      row1_col1, row1_col2, row1_col3 = st.columns(3)
-      row2_col1, row2_col2 = st.columns(2)
+      # Výpočty pre grafické prvky (rozsahy a uhly)
+      # Teplota: rozsah -20 °C až +50 °C (celkovo 70 stupňov)
+      temp_pct = min(100, max(0, ((t_val + 20) / 70) * 100))
+      # Vietor: max 50 km/h -> uhol -135° až +135°
+      wind_angle = (w_val / 50) * 270 - 135
+      # Vlhkosť: 0-100%
+      hum_angle = (h_val / 100) * 270 - 135
+      # UV index: max 12
+      uv_angle = (uv_val / 12) * 270 - 135
+      # Zrážky: max 50 mm
+      rain_pct = min(100, max(0, (r_val / 50) * 100))
 
-      with row1_col1:
-        st.plotly_chart(
-            create_gauge(t_val, "Teplota", 50, "°C", min_val=-20),
-            use_container_width=True,
-        )
-      with row1_col2:
-        st.plotly_chart(
-            create_gauge(h_val, "Vlhkosť", 100, "%", min_val=0),
-            use_container_width=True,
-        )
-      with row1_col3:
-        st.plotly_chart(
-            create_gauge(w_val, "Vietor", 50, "km/h", min_val=0),
-            use_container_width=True,
-        )
+      html_current = f"""
+            <div class="grid-container">
+                <!-- Teplota -->
+                <div class="weather-card">
+                    <div class="card-title">Teplota</div>
+                    <div class="thermometer-box">
+                        <div class="thermometer-fill" style="height: {temp_pct}%;"></div>
+                    </div>
+                    <div class="main-value">{t_val:.1f} °C</div>
+                </div>
 
-      with row2_col1:
-        st.plotly_chart(
-            create_gauge(r_val, "Zrážky", 50, "mm", min_val=0),
-            use_container_width=True,
-        )
-      with row2_col2:
-        st.plotly_chart(
-            create_gauge(uv_val, "UV index", 12, "", min_val=0),
-            use_container_width=True,
-        )
+                <!-- Vlhkosť -->
+                <div class="weather-card">
+                    <div class="card-title">Vlhkosť vzduchu</div>
+                    <div class="gauge-circle">
+                        <div class="gauge-needle" style="transform: translateX(-50%) rotate({hum_angle}deg);"></div>
+                        <div class="gauge-center-dot"></div>
+                    </div>
+                    <div class="main-value">{h_val:.0f} %</div>
+                </div>
+
+                <!-- Vietor -->
+                <div class="weather-card">
+                    <div class="card-title">Rýchlosť vetra</div>
+                    <div class="gauge-circle">
+                        <div class="gauge-needle" style="transform: translateX(-50%) rotate({wind_angle}deg);"></div>
+                        <div class="gauge-center-dot"></div>
+                    </div>
+                    <div class="main-value">{w_val:.1f} km/h</div>
+                </div>
+
+                <!-- Zrážky -->
+                <div class="weather-card">
+                    <div class="card-title">Zrážky</div>
+                    <div class="rain-box">
+                        <div class="rain-fill" style="height: {rain_pct}%;"></div>
+                    </div>
+                    <div class="main-value">{r_val:.1f} mm</div>
+                </div>
+
+                <!-- UV Index -->
+                <div class="weather-card">
+                    <div class="card-title">UV index</div>
+                    <div class="gauge-circle">
+                        <div class="gauge-needle" style="transform: translateX(-50%) rotate({uv_angle}deg);"></div>
+                        <div class="gauge-center-dot"></div>
+                    </div>
+                    <div class="main-value">{uv_val:.1f}</div>
+                </div>
+            </div>
+            """
+      st.markdown(html_current, unsafe_allow_html=True)
     else:
       st.warning("Súbor 'meteo_aktualne.csv' je prázdny.")
   except Exception as e:
@@ -229,7 +315,6 @@ else:
   if df_filtered.empty:
     st.warning("⚠️ Pre zvolené obdobie sa nenašli žiadne dáta.")
   else:
-    # Identifikácia stĺpcov pre grafy
     t_max = next(
         (
             c
@@ -435,7 +520,7 @@ else:
 
     # Rozbaľovacia tabuľka
     with st.expander("📋 Zobraziť zdrojovú tabuľku dát pre vybrané obdobie"):
-      col_cas = next(
+      col_cas_tab = next(
           (
               c
               for c in df_filtered.columns
@@ -443,7 +528,7 @@ else:
           ),
           None,
       )
-      cols_to_hide = [col_cas, "DateTime"] if col_cas else ["DateTime"]
+      cols_to_hide = [col_cas_tab, "DateTime"] if col_cas_tab else ["DateTime"]
       df_table = df_filtered.drop(
           columns=[c for c in cols_to_hide if c in df_filtered.columns],
           errors="ignore",
