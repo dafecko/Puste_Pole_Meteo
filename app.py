@@ -11,7 +11,7 @@ st.set_page_config(page_title="Meteo Web Dashboard - Pusté Pole", layout="wide"
 # Automatické obnovenie stránky každých 5 minút (300 000 ms)
 count = st_autorefresh(interval=300000, limit=None, key="meteo_autorefresh")
 
-# Vlastné CSS štýly pre rovnakú výšku kariet a zarovnané nadpisy
+# Vlastné CSS štýly pre pevnú výšku a zarovnanie kariet
 st.markdown(
     """
     <style>
@@ -25,24 +25,25 @@ st.markdown(
         align-items: center;
         text-align: center;
         margin-bottom: 10px;
-        min-height: 240px; /* Zabezpečí rovnakú minimálnu výšku pre všetky karty */
-        justify-content: space-between; /* Rovnomerne rozmiestni obsah v karte */
+        height: 255px; /* Pevná výška pre každú kartu, aby boli identické */
+        justify-content: space-between; /* Nadpis hore, graf v strede, hodnota dole */
     }
     .card-title {
-        font-size: 1.0em;
+        font-size: 0.95em;
         font-weight: 600;
         color: #555;
         margin-bottom: 5px;
-        height: 45px; /* Pevná výška pre nadpis, aby sa 1-riadkové a 2-riadkové názvy zarovnali narovnako */
+        height: 45px; /* Pevný box pre nadpis (zabezpečí rovnaký priestor pre 1 aj 2 riadky) */
         display: flex;
         align-items: center;
         justify-content: center;
+        line-height: 1.2;
     }
     .main-value {
         font-size: 1.6em;
         font-weight: bold;
         color: #2c3e50;
-        margin: 8px 0 0 0;
+        margin: 0;
     }
     
     /* Štýly pre vertikálne stupnice (teplomer, zrážky) */
@@ -101,7 +102,6 @@ st.markdown(
         box-shadow: inset 0 2px 4px rgba(0,0,0,0.05), 0 2px 6px rgba(0,0,0,0.05);
     }
     
-    /* Farebné okraje pre jednotlivé typy ciferníkov (plný 270-stupňový rozsah) */
     .gauge-hum {
         border: 5px solid transparent;
         background-image: linear-gradient(#ffffff, #ffffff), conic-gradient(from 225deg, #e67e22 0deg, #2ecc71 135deg, #3498db 270deg, transparent 270deg);
@@ -142,7 +142,6 @@ st.markdown(
         box-shadow: 0 1px 3px rgba(0,0,0,0.3);
     }
     
-    /* Pozície pre hustejšie hodnoty na ciferníku */
     .scale-val {
         position: absolute;
         font-size: 8px;
@@ -232,19 +231,19 @@ def get_weather_data(lat, lon):
 
 def get_weather_icon(code):
   if code == 0:
-    return "☀️"  # Jasno
+    return "☀️"
   elif code in [1, 2]:
-    return "⛅"  # Polooblačno
+    return "⛅"
   elif code == 3:
-    return "☁️"  # Oblačno
+    return "☁️"
   elif code in [45, 48]:
-    return "🌫️"  # Hmla
+    return "🌫️"
   elif code in [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82]:
-    return "🌧️"  # Dážď / Prehánky
+    return "🌧️"
   elif code in [71, 73, 75, 77, 85, 86]:
-    return "❄️"  # Sneh
+    return "❄️"
   elif code in [95, 96, 99]:
-    return "⛈️"  # Búrka
+    return "⛈️"
   else:
     return "🌤️"
 
@@ -322,7 +321,6 @@ if os.path.exists(CSV_AKTUALNE):
       r_val = get_val(akt, ["zrážky", "zrazky", "rain"])
       uv_val = get_val(akt, ["uv", "uvi"])
 
-      # Súhrnný panel s ikonou a vypísanými hodnotami na začiatku
       st.markdown(
           f"""
             <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
