@@ -401,10 +401,7 @@ if os.path.exists(CSV_AKTUALNE):
                     <div>
                         <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">TEPLOTA</div>
                         <div style="font-size: 1.1em; font-weight: bold; color: #2c3e50;">{t_val:.1f} °C</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">POCITOVÁ TEPLOTA</div>
-                        <div style="font-size: 1.1em; font-weight: bold; color: #2c3e50;">{pocitova_val:.1f} °C</div>
+                        <div style="font-size: 0.75em; color: #7f8c8d;">Pocitová: {pocitova_val:.1f} °C</div>
                     </div>
                     <div>
                         <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">TLAK</div>
