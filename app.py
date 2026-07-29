@@ -6,7 +6,7 @@ import streamlit as st
 # Nastavenie stránky na šírku
 st.set_page_config(page_title="Meteo Web Dashboard - Pusté Pole", layout="wide")
 
-# Vlastné CSS štýly pre grafické karty a detailné stupnice
+# Vlastné CSS štýly pre grafické karty, detailné stupnice a farebné škály ciferníkov
 st.markdown(
     """
     <style>
@@ -76,37 +76,59 @@ st.markdown(
         transition: height 0.5s ease;
     }
 
-    /* Štýly pre kruhové ciferníky s hustejšou stupnicou */
+    /* Štýly pre kruhové ciferníky s farebnými škálami */
     .gauge-circle {
         width: 110px;
         height: 110px;
         border-radius: 50%;
-        border: 4px solid #3498db;
         position: relative;
         display: flex;
         align-items: center;
         justify-content: center;
-        background: radial-gradient(circle, #ffffff 60%, #f4f6f9 100%);
+        background: radial-gradient(circle, #ffffff 62%, #f8f9fa 100%);
         margin: 5px auto;
-        box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.05), 0 2px 6px rgba(0,0,0,0.05);
     }
+    
+    /* Farebné okraje pre jednotlivé typy ciferníkov (270-stupňové oblúky) */
+    .gauge-hum {
+        border: 5px solid transparent;
+        background-image: linear-gradient(#ffffff, #ffffff), conic-gradient(from 225deg, #e67e22 0deg, #2ecc71 100deg, #3498db 200deg, transparent 200deg);
+        background-origin: border-box;
+        background-clip: content-box, border-box;
+    }
+    .gauge-wind {
+        border: 5px solid transparent;
+        background-image: linear-gradient(#ffffff, #ffffff), conic-gradient(from 225deg, #2ecc71 0deg, #f1c40f 100deg, #e67e22 180deg, #e74c3c 270deg, transparent 270deg);
+        background-origin: border-box;
+        background-clip: content-box, border-box;
+    }
+    .gauge-uv {
+        border: 5px solid transparent;
+        background-image: linear-gradient(#ffffff, #ffffff), conic-gradient(from 225deg, #2ecc71 0deg 67.5deg, #f1c40f 67.5deg 135deg, #e67e22 135deg 180deg, #e74c3c 180deg 247.5deg, #9b59b6 247.5deg 270deg, transparent 270deg);
+        background-origin: border-box;
+        background-clip: content-box, border-box;
+    }
+
     .gauge-needle {
         position: absolute;
         bottom: 50%;
         left: 50%;
         width: 3px;
         height: 35px;
-        background: #e74c3c;
+        background: #2c3e50;
         transform-origin: bottom center;
         transform: translateX(-50%) rotate(0deg);
         z-index: 3;
+        border-radius: 2px;
     }
     .gauge-center-dot {
-        width: 8px;
-        height: 8px;
-        background: #333;
+        width: 9px;
+        height: 9px;
+        background: #2c3e50;
         border-radius: 50%;
         z-index: 4;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
     }
     
     /* Pozície pre hustejšie hodnoty na ciferníku */
@@ -116,12 +138,12 @@ st.markdown(
         font-weight: 700;
         color: #7f8c8d;
     }
-    .s-0   { bottom: 18px; left: 16px; }
-    .s-20  { top: 42px; left: 14px; }
-    .s-40  { top: 14px; left: 34px; }
-    .s-60  { top: 14px; right: 34px; }
-    .s-80  { top: 42px; right: 14px; }
-    .s-100 { bottom: 18px; right: 16px; }
+    .s-0   { bottom: 18px; left: 15px; }
+    .s-20  { top: 42px; left: 12px; }
+    .s-40  { top: 14px; left: 32px; }
+    .s-60  { top: 14px; right: 32px; }
+    .s-80  { top: 42px; right: 12px; }
+    .s-100 { bottom: 18px; right: 15px; }
     
     .scale-unit {
         position: absolute;
@@ -130,7 +152,7 @@ st.markdown(
         transform: translateX(-50%);
         font-size: 8px;
         font-weight: 600;
-        color: #b2bec3;
+        color: #95a5a6;
     }
     </style>
 """,
@@ -263,7 +285,7 @@ if os.path.exists(CSV_AKTUALNE):
             f"""
                 <div class="weather-card">
                     <div class="card-title">Vlhkosť vzduchu</div>
-                    <div class="gauge-circle">
+                    <div class="gauge-circle gauge-hum">
                         <div class="scale-val s-0">0</div>
                         <div class="scale-val s-20">20</div>
                         <div class="scale-val s-40">40</div>
@@ -285,7 +307,7 @@ if os.path.exists(CSV_AKTUALNE):
             f"""
                 <div class="weather-card">
                     <div class="card-title">Rýchlosť vetra</div>
-                    <div class="gauge-circle">
+                    <div class="gauge-circle gauge-wind">
                         <div class="scale-val s-0">0</div>
                         <div class="scale-val s-20">10</div>
                         <div class="scale-val s-40">20</div>
@@ -329,7 +351,7 @@ if os.path.exists(CSV_AKTUALNE):
             f"""
                 <div class="weather-card">
                     <div class="card-title">UV index</div>
-                    <div class="gauge-circle">
+                    <div class="gauge-circle gauge-uv">
                         <div class="scale-val s-0">0</div>
                         <div class="scale-val s-20">2</div>
                         <div class="scale-val s-40">5</div>
