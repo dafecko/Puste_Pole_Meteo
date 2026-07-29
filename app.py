@@ -46,13 +46,21 @@ st.markdown(
         align-items: center;
         justify-content: center;
         line-height: 1.2;
-        cursor: help;
     }
     .main-value {
         font-size: 1.5em;
         font-weight: bold;
         color: #2c3e50;
         margin: 0;
+    }
+    .main-value-tooltip {
+        font-size: 1.5em;
+        font-weight: bold;
+        color: #2c3e50;
+        margin: 0;
+        cursor: help;
+        text-decoration: underline dotted #7f8c8d;
+        text-underline-offset: 4px;
     }
     .sub-value {
         font-size: 0.8em;
@@ -206,7 +214,7 @@ st.markdown(
             height: auto;
             margin-bottom: 15px;
         }
-        .main-value {
+        .main-value, .main-value-tooltip {
             font-size: 1.3em;
         }
     }
@@ -605,7 +613,7 @@ if os.path.exists(CSV_AKTUALNE):
       wind_angle = min(135, max(-135, (w_val / 50) * 270 - 135))
       uv_angle = min(135, max(-135, (uv_val / 12) * 270 - 135))
 
-      # Dynamické texty pre tooltips (vysvetlivky)
+      # Dynamické texty pre tooltips (vysvetlivky nad hodnotami)
       if h_val < 30:
         hum_desc = "Suchý vzduch (pod 30%)"
       elif h_val <= 60:
@@ -644,7 +652,7 @@ if os.path.exists(CSV_AKTUALNE):
         st.markdown(
             f"""
                 <div class="weather-card">
-                    <div class="card-title" title="Aktuálna teplota vzduchu. Pocitová teplota zahŕňa vplyv vetra alebo vlhkosti.">Teplota ℹ️</div>
+                    <div class="card-title">Teplota</div>
                     <div class="bar-container">
                         <div class="bar-scale"><span>50°</span><span>25°</span><span>0°</span><span>-20°</span></div>
                         <div class="thermometer-box"><div class="thermometer-fill" style="height: {temp_pct}%;"></div></div>
@@ -659,14 +667,14 @@ if os.path.exists(CSV_AKTUALNE):
         st.markdown(
             f"""
                 <div class="weather-card">
-                    <div class="card-title" title="{hum_desc}">Vlhkosť vzduchu ℹ️</div>
+                    <div class="card-title">Vlhkosť vzduchu</div>
                     <div class="gauge-circle gauge-hum">
                         <div class="scale-val s-0">0</div><div class="scale-val s-20">20</div><div class="scale-val s-40">40</div><div class="scale-val s-60">60</div><div class="scale-val s-80">80</div><div class="scale-val s-100">100</div>
                         <div class="scale-unit">%</div>
                         <div class="gauge-needle" style="transform: translateX(-50%) rotate({hum_angle}deg);"></div>
                         <div class="gauge-center-dot"></div>
                     </div>
-                    <div class="main-value">{h_val:.0f} %</div>
+                    <div class="main-value-tooltip" title="{hum_desc}">{h_val:.0f} %</div>
                     <div class="sub-value">Rosný bod: {dew_val:.1f} °C</div>
                 </div>
                 """,
@@ -676,7 +684,7 @@ if os.path.exists(CSV_AKTUALNE):
         st.markdown(
             f"""
                 <div class="weather-card">
-                    <div class="card-title" title="Atmosférický tlak prepočítaný na hladinu mora. Normálny tlak je okolo 1013 hPa.">Atmosférický tlak ℹ️</div>
+                    <div class="card-title">Atmosférický tlak</div>
                     <div class="bar-container">
                         <div class="bar-scale"><span>1050</span><span>1020</span><span>980</span><span>950</span></div>
                         <div class="pressure-box"><div class="pressure-fill" style="height: {press_pct}%;"></div></div>
@@ -691,7 +699,7 @@ if os.path.exists(CSV_AKTUALNE):
         st.markdown(
             f"""
                 <div class="weather-card">
-                    <div class="card-title" title="Aktuálna rýchlosť a slovný smer prúdenia vetra.">Rýchlosť vetra ℹ️</div>
+                    <div class="card-title">Rýchlosť vetra</div>
                     <div class="gauge-circle gauge-wind">
                         <div class="scale-val s-0">0</div><div class="scale-val s-20">10</div><div class="scale-val s-40">20</div><div class="scale-val s-60">30</div><div class="scale-val s-80">40</div><div class="scale-val s-100">50</div>
                         <div class="scale-unit">km/h</div>
@@ -708,14 +716,14 @@ if os.path.exists(CSV_AKTUALNE):
         st.markdown(
             f"""
                 <div class="weather-card">
-                    <div class="card-title" title="{uv_desc}">UV index ℹ️</div>
+                    <div class="card-title">UV index</div>
                     <div class="gauge-circle gauge-uv">
                         <div class="scale-val s-0">0</div><div class="scale-val s-20">2</div><div class="scale-val s-40">5</div><div class="scale-val s-60">7</div><div class="scale-val s-80">10</div><div class="scale-val s-100">12</div>
                         <div class="scale-unit">UV</div>
                         <div class="gauge-needle" style="transform: translateX(-50%) rotate({uv_angle}deg);"></div>
                         <div class="gauge-center-dot"></div>
                     </div>
-                    <div class="main-value">{uv_val:.1f}</div>
+                    <div class="main-value-tooltip" title="{uv_desc}">{uv_val:.1f}</div>
                     <div class="sub-value">Zrážky: {r_val:.1f} mm</div>
                 </div>
                 """,
