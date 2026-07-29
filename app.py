@@ -15,13 +15,12 @@ st.set_page_config(
 # Automatické obnovenie stránky každých 5 minút (300 000 ms)
 count = st_autorefresh(interval=300000, limit=None, key="meteo_autorefresh")
 
-# --- VLASTNÉ CSS ŠTÝLY S AUTOMATICKÝM PRISPÔSOBENÍM TÉME (DARK/LIGHT) ---
+# --- VLASTNÉ CSS ŠTÝLY S FIXNOU ČITATEĽNOSŤOU ---
 st.markdown(
     """
     <style>
     .weather-card {
-        background-color: var(--secondary-background-color, #ffffff);
-        color: var(--text-color, #2c3e50);
+        background-color: var(--secondary-background-color);
         border: 1px solid rgba(150, 150, 150, 0.15);
         border-radius: 12px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.06);
@@ -118,25 +117,25 @@ st.markdown(
         display: flex;
         align-items: center;
         justify-content: center;
-        background: var(--secondary-background-color, #ffffff);
+        background: var(--secondary-background-color);
         margin: 5px auto;
         box-shadow: inset 0 2px 4px rgba(0,0,0,0.05), 0 2px 6px rgba(0,0,0,0.05);
     }
     .gauge-hum {
         border: 5px solid transparent;
-        background-image: linear-gradient(var(--secondary-background-color, #ffffff), var(--secondary-background-color, #ffffff)), conic-gradient(from 225deg, #e67e22 0deg, #2ecc71 135deg, #3498db 270deg, transparent 270deg);
+        background-image: linear-gradient(var(--secondary-background-color), var(--secondary-background-color)), conic-gradient(from 225deg, #e67e22 0deg, #2ecc71 135deg, #3498db 270deg, transparent 270deg);
         background-origin: border-box;
         background-clip: content-box, border-box;
     }
     .gauge-wind {
         border: 5px solid transparent;
-        background-image: linear-gradient(var(--secondary-background-color, #ffffff), var(--secondary-background-color, #ffffff)), conic-gradient(from 225deg, #2ecc71 0deg, #f1c40f 100deg, #e67e22 180deg, #e74c3c 270deg, transparent 270deg);
+        background-image: linear-gradient(var(--secondary-background-color), var(--secondary-background-color)), conic-gradient(from 225deg, #2ecc71 0deg, #f1c40f 100deg, #e67e22 180deg, #e74c3c 270deg, transparent 270deg);
         background-origin: border-box;
         background-clip: content-box, border-box;
     }
     .gauge-uv {
         border: 5px solid transparent;
-        background-image: linear-gradient(var(--secondary-background-color, #ffffff), var(--secondary-background-color, #ffffff)), conic-gradient(from 225deg, #2ecc71 0deg 67.5deg, #f1c40f 67.5deg 135deg, #e67e22 135deg 180deg, #e74c3c 180deg 247.5deg, #9b59b6 247.5deg 270deg, transparent 270deg);
+        background-image: linear-gradient(var(--secondary-background-color), var(--secondary-background-color)), conic-gradient(from 225deg, #2ecc71 0deg 67.5deg, #f1c40f 67.5deg 135deg, #e67e22 135deg 180deg, #e74c3c 180deg 247.5deg, #9b59b6 247.5deg 270deg, transparent 270deg);
         background-origin: border-box;
         background-clip: content-box, border-box;
     }
@@ -146,7 +145,7 @@ st.markdown(
         left: 50%;
         width: 3px;
         height: 35px;
-        background: var(--text-color, #2c3e50);
+        background: var(--text-color);
         transform-origin: bottom center;
         transform: translateX(-50%) rotate(0deg);
         z-index: 3;
@@ -155,7 +154,7 @@ st.markdown(
     .gauge-center-dot {
         width: 9px;
         height: 9px;
-        background: var(--text-color, #2c3e50);
+        background: var(--text-color);
         border-radius: 50%;
         z-index: 4;
         box-shadow: 0 1px 3px rgba(0,0,0,0.3);
@@ -410,7 +409,7 @@ st.title("🌤️ Meteorologický Web Dashboard - Pusté Pole")
 
 st.markdown(
     """
-    <div style="background-color: var(--secondary-background-color, #f1f3f5); padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; font-size: 0.9em; display: flex; justify-content: space-between; flex-wrap: wrap;">
+    <div style="background-color: var(--secondary-background-color); padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; font-size: 0.9em; display: flex; justify-content: space-between; flex-wrap: wrap;">
         <div>📍 <b>Lokalita:</b> Pusté Pole</div>
         <div>🚀 <b>Oficiálne spustená od:</b> 1. 7. 2026</div>
     </div>
@@ -580,7 +579,7 @@ with tab_aktualne:
 
   st.markdown(
       f"""
-        <div style="background-color: var(--secondary-background-color, #f8f9fa); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+        <div style="background-color: var(--secondary-background-color); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
             <div style="display: flex; align-items: center; gap: 20px;">
                 <div style="font-size: 3.5em;">{curr_icon}</div>
                 <div>
@@ -762,7 +761,7 @@ with tab_historia:
     volba = st.sidebar.radio(
         "Vyberte spôsob zobrazenia:",
         [
-            "1 - Celé obdobie",
+            "1 - Posledných 7 dní",
             "2 - Konkrétny rok",
             "3 - Konkrétny mesiac a rok",
             "4 - Vlastné obdobie (od - do)",
@@ -775,7 +774,20 @@ with tab_historia:
 
     df_prev = pd.DataFrame()
 
-    if "2" in volba:
+    if "1" in volba:
+      datum_do = max_d
+      datum_od = max_d - datetime.timedelta(days=6)
+      df_filtered = df_filtered[
+          (df_filtered["DateTime"].dt.date >= datum_od)
+          & (df_filtered["DateTime"].dt.date <= datum_do)
+      ]
+      prev_datum_do = datum_od - datetime.timedelta(days=1)
+      prev_datum_od = prev_datum_do - datetime.timedelta(days=6)
+      df_prev = df[
+          (df["DateTime"].dt.date >= prev_datum_od)
+          & (df["DateTime"].dt.date <= prev_datum_do)
+      ]
+    elif "2" in volba:
       dostupne_roky = sorted(df["DateTime"].dt.year.unique())
       vybrany_rok = st.sidebar.selectbox("Vyberte rok", dostupne_roky)
       df_filtered = df_filtered[df_filtered["DateTime"].dt.year == vybrany_rok]
@@ -825,9 +837,6 @@ with tab_historia:
           (df["DateTime"].dt.date >= prev_datum_od)
           & (df["DateTime"].dt.date <= prev_datum_do)
       ]
-    else:
-      df_filtered = df.copy()
-      df_prev = pd.DataFrame()
 
     t_max_col = next(
         (
