@@ -9,7 +9,14 @@ def deg_to_slovak_word(deg):
   if pd.isna(deg) or deg == "-" or deg == "":
     return "-"
 
-  deg_str = str(deg).replace("°", "").replace("deg", "").strip()
+  # Ošetrenie pre rôzne typy znakov stupňa (° aj º)
+  deg_str = (
+      str(deg)
+      .replace("°", "")
+      .replace("º", "")
+      .replace("deg", "")
+      .strip()
+  )
   try:
     d = float(deg_str)
   except ValueError:
@@ -170,7 +177,7 @@ def scrape_weather():
   w_val_ms = clean_val(vietor)
   w_val = round(w_val_ms * 3.6, 1)
 
-  # Prevod surového smeru vetra na slovné vyjadrenie
+  # Prevod na slovné vyjadrenie so zohľadnením znaku º
   smer_str = deg_to_slovak_word(smer_vetra)
 
   teraz = datetime.datetime.now(ZoneInfo("Europe/Bratislava"))
