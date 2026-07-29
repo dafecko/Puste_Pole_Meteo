@@ -381,7 +381,56 @@ else:
 
 st.markdown("---")
 
-# 2. NAČÍTANIE HISTORICKÝCH DÁT PRE GRAFY
+# 2. SEKCIA: PREDPOVEĎ POČASIA (Presunutá sem)
+st.subheader("🔮 Predpoveď počasia na najbližšie dni")
+
+
+@st.cache_data(ttl=3600)
+def get_weather_forecast(lat, lon):
+  url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode&timezone=Europe/Bratislava"
+  try:
+    response = requests.get(url)
+    data = response.json()
+    return data.get("daily", None)
+  except Exception as e:
+    st.error(f"Nepodarilo sa načítať predpoveď: {e}")
+    return None
+
+
+LAT, LON = 49.18, 20.85
+forecast_data = get_weather_forecast(LAT, LON)
+
+if forecast_data:
+  days = forecast_data["time"]
+  t_max = forecast_data["temperature_2m_max"]
+  t_min = forecast_data["temperature_2m_min"]
+  rain = forecast_data["precipitation_sum"]
+
+  num_days = len(days)
+  cols = st.columns(num_days)
+
+  for i in range(num_days):
+    with cols[i]:
+      d_parts = days[i].split("-")
+      formatted_date = f"{int(d_parts[2])}.{int(d_parts[1])}."
+
+      st.markdown(
+          f"""
+            <div class="weather-card">
+                <div class="card-title">{formatted_date}</div>
+                <div style="font-size: 0.85em; color: #e74c3c; margin: 4px 0;">Max: <b>{t_max[i]:.1f}°C</b></div>
+                <div style="font-size: 0.85em; color: #3498db; margin: 4px 0;">Min: <b>{t_min[i]:.1f}°C</b></div>
+                <div style="font-size: 0.85em; color: #7f8c8d; margin-top: 6px;">🌧️ {rain[i]:.1f} mm</div>
+            </div>
+            """,
+          unsafe_allow_html=True,
+      )
+else:
+  st.info("Predpoveď počasia je momentálne nedostupná.")
+
+st.markdown("---")
+
+# 3. NAČÍTANIE HISTORICKÝCH DÁT PRE GRAFY
 df = load_data()
 
 if df is None or df.empty:
@@ -664,52 +713,3 @@ else:
           errors="ignore",
       )
       st.dataframe(df_table)
-
-st.markdown("---")
-
-# 3. SEKCIA: PREDPOVEĎ POČASIA
-st.subheader("🔮 Predpoveď počasia na najbližšie dni")
-
-
-@st.cache_data(ttl=3600)
-def get_weather_forecast(lat, lon):
-  url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode&timezone=Europe/Bratislava"
-  try:
-    response = requests.get(url)
-    data = response.json()
-    return data.get("daily", None)
-  except Exception as e:
-    st.error(f"Nepodarilo sa načítať predpoveď: {e}")
-    return None
-
-
-LAT, LON = 49.18, 20.85
-forecast_data = get_weather_forecast(LAT, LON)
-
-if forecast_data:
-  days = forecast_data["time"]
-  t_max = forecast_data["temperature_2m_max"]
-  t_min = forecast_data["temperature_2m_min"]
-  rain = forecast_data["precipitation_sum"]
-
-  num_days = len(days)
-  cols = st.columns(num_days)
-
-  for i in range(num_days):
-    with cols[i]:
-      d_parts = days[i].split("-")
-      formatted_date = f"{int(d_parts[2])}.{int(d_parts[1])}."
-
-      st.markdown(
-          f"""
-            <div class="weather-card">
-                <div class="card-title">{formatted_date}</div>
-                <div style="font-size: 0.85em; color: #e74c3c; margin: 4px 0;">Max: <b>{t_max[i]:.1f}°C</b></div>
-                <div style="font-size: 0.85em; color: #3498db; margin: 4px 0;">Min: <b>{t_min[i]:.1f}°C</b></div>
-                <div style="font-size: 0.85em; color: #7f8c8d; margin-top: 6px;">🌧️ {rain[i]:.1f} mm</div>
-            </div>
-            """,
-          unsafe_allow_html=True,
-      )
-else:
-  st.info("Predpoveď počasia je momentálne nedostupná.")
