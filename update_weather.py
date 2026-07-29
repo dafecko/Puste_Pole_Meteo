@@ -4,6 +4,54 @@ from playwright.sync_api import sync_playwright
 import pandas as pd
 
 
+def deg_to_slovak_word(deg):
+  """Prevedie stupne na slovný názov svetovej strany v slovenčine."""
+  if pd.isna(deg) or deg == "-" or deg == "":
+    return "-"
+
+  deg_str = str(deg).replace("°", "").replace("deg", "").strip()
+  try:
+    d = float(deg_str)
+  except ValueError:
+    return deg_str
+
+  d = d % 360
+
+  if 348.75 <= d or d < 11.25:
+    return "Sever"
+  elif 11.25 <= d < 33.75:
+    return "Severo-severovýchod"
+  elif 33.75 <= d < 56.25:
+    return "Severovýchod"
+  elif 56.25 <= d < 78.75:
+    return "Východo-severovýchod"
+  elif 78.75 <= d < 101.25:
+    return "Východ"
+  elif 101.25 <= d < 123.75:
+    return "Východo-juhovýchod"
+  elif 123.75 <= d < 146.25:
+    return "Juhovýchod"
+  elif 146.25 <= d < 168.75:
+    return "Juho-juhovýchod"
+  elif 168.75 <= d < 191.25:
+    return "Juh"
+  elif 191.25 <= d < 213.75:
+    return "Juho-juhozápad"
+  elif 213.75 <= d < 236.25:
+    return "Juhozápad"
+  elif 236.25 <= d < 258.75:
+    return "Západno-juhozápad"
+  elif 258.75 <= d < 281.25:
+    return "Západ"
+  elif 281.25 <= d < 303.75:
+    return "Západno-severozápad"
+  elif 303.75 <= d < 326.25:
+    return "Severozápad"
+  elif 326.25 <= d < 348.75:
+    return "Severo-severozápad"
+  return "Sever"
+
+
 def scrape_weather():
   url = "https://app.weathercloud.net/d8797717349#current"
   print(
@@ -122,12 +170,8 @@ def scrape_weather():
   w_val_ms = clean_val(vietor)
   w_val = round(w_val_ms * 3.6, 1)
 
-  # Dôsledné vyčistenie smeru vetra od znakov °, "deg" a medzier už pri zbere
-  smer_str = (
-      str(smer_vetra).replace("°", "").replace("deg", "").strip()
-  )
-  if not smer_str:
-    smer_str = "-"
+  # Prevod surového smeru vetra na slovné vyjadrenie
+  smer_str = deg_to_slovak_word(smer_vetra)
 
   teraz = datetime.datetime.now(ZoneInfo("Europe/Bratislava"))
 
