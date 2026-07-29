@@ -59,8 +59,6 @@ st.markdown(
         color: #2c3e50;
         margin: 0;
         cursor: help;
-        text-decoration: underline dotted #7f8c8d;
-        text-underline-offset: 4px;
     }
     .sub-value {
         font-size: 0.8em;
@@ -580,7 +578,7 @@ if os.path.exists(CSV_AKTUALNE):
                     <div>
                         <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">TEPLOTA</div>
                         <div style="font-size: 1.1em; font-weight: bold; color: #2c3e50;">{t_val:.1f} °C</div>
-                        <div style="font-size: 0.75em; color: #7f8c8d;">Pocitová: {pocitova_val:.1f} °C</div>
+                        <div style="font-size: 0.75em; color: #7f8c8d;">Pocitova: {pocitova_val:.1f} °C</div>
                     </div>
                     <div>
                         <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">TLAK</div>
@@ -613,13 +611,29 @@ if os.path.exists(CSV_AKTUALNE):
       wind_angle = min(135, max(-135, (w_val / 50) * 270 - 135))
       uv_angle = min(135, max(-135, (uv_val / 12) * 270 - 135))
 
-      # Dynamické texty pre tooltips (vysvetlivky nad hodnotami)
+      # Dynamické texty pre tooltips bez bodiek
       if h_val < 30:
         hum_desc = "Suchý vzduch (pod 30%)"
       elif h_val <= 60:
-        hum_desc = "Ideálna vlhkosť (30% - 60%)"
+        hum_desc = "Ideálna vlhkosť vzduchu (30% - 60%)"
       else:
         hum_desc = "Vysoká vlhkosť / dusno (nad 60%)"
+
+      if p_val < 1000:
+        press_desc = (
+            f"Atmosférický tlak {p_val:.1f} hPa: Nízky tlak (tlaková níž)."
+            " Často prináša zhoršené počasie, zrážky a vietor."
+        )
+      elif p_val <= 1025:
+        press_desc = (
+            f"Atmosférický tlak {p_val:.1f} hPa: Normálny / štandardný tlak"
+            " vzduchu."
+        )
+      else:
+        press_desc = (
+            f"Atmosférický tlak {p_val:.1f} hPa: Vysoký tlak (tlaková výš)."
+            " Zvyčajne prináša stabilné, jasné a slnečné počasie."
+        )
 
       if uv_val < 3:
         uv_desc = (
@@ -689,7 +703,7 @@ if os.path.exists(CSV_AKTUALNE):
                         <div class="bar-scale"><span>1050</span><span>1020</span><span>980</span><span>950</span></div>
                         <div class="pressure-box"><div class="pressure-fill" style="height: {press_pct}%;"></div></div>
                     </div>
-                    <div class="main-value">{p_val:.1f} hPa</div>
+                    <div class="main-value-tooltip" title="{press_desc}">{p_val:.1f} hPa</div>
                     <div class="sub-value">Barometer</div>
                 </div>
                 """,
