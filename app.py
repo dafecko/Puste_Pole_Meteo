@@ -181,11 +181,15 @@ LAT, LON = 49.18, 20.85
 
 # --- POMOCNÉ FUNKCIE ---
 def deg_to_cardinal(deg):
-  """Prepočíta stupne na slovenské svetové strany."""
+  """Prepočíta stupne na slovenské svetové strany bez zobrazenia stupňov."""
+  if pd.isna(deg) or deg == "-" or deg == "":
+    return "-"
+
+  deg_str = str(deg).replace("°", "").strip()
   try:
-    d = float(str(deg).replace("°", "").strip())
-  except:
-    return str(deg)
+    d = float(deg_str)
+  except ValueError:
+    return deg_str.upper()
 
   directions = [
       ("S", 0, 11.25),
@@ -419,10 +423,8 @@ if os.path.exists(CSV_AKTUALNE):
       r_val = get_val(akt, ["zrážky", "zrazky", "rain"])
       uv_val = get_val(akt, ["uv", "uvi"])
 
-      # Úplné odstránenie stupňov a ponechanie iba čistej svetovej strany
-      w_dir_clean = str(w_dir_raw).replace("°", "").strip()
-      w_cardinal = deg_to_cardinal(w_dir_clean)
-      w_dir_display = w_cardinal if w_dir_clean != "-" else "-"
+      # Dôsledný prepočet na čistú svetovú stranu bez akýchkoľvek stupňov
+      w_cardinal = deg_to_cardinal(w_dir_raw)
 
       if t_val <= 10.0 and chill_val != 0:
         pocitova_val = chill_val
@@ -467,7 +469,7 @@ if os.path.exists(CSV_AKTUALNE):
                     <div>
                         <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">VIETOR</div>
                         <div style="font-size: 1.1em; font-weight: bold; color: #2c3e50;">{w_val:.1f} km/h</div>
-                        <div style="font-size: 0.75em; color: #7f8c8d;">{w_dir_display}</div>
+                        <div style="font-size: 0.75em; color: #7f8c8d;">{w_cardinal}</div>
                     </div>
                     <div>
                         <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">ZRÁŽKY / UV</div>
