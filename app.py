@@ -419,9 +419,10 @@ if os.path.exists(CSV_AKTUALNE):
       r_val = get_val(akt, ["zrážky", "zrazky", "rain"])
       uv_val = get_val(akt, ["uv", "uvi"])
 
-      # Prepočet smeru vetra na svetovú stranu
-      w_cardinal = deg_to_cardinal(w_dir_raw)
-      w_dir_display = f"{w_cardinal} ({w_dir_raw}°)" if w_dir_raw != "-" else "-"
+      # Úplné odstránenie stupňov a ponechanie iba čistej svetovej strany
+      w_dir_clean = str(w_dir_raw).replace("°", "").strip()
+      w_cardinal = deg_to_cardinal(w_dir_clean)
+      w_dir_display = w_cardinal if w_dir_clean != "-" else "-"
 
       if t_val <= 10.0 and chill_val != 0:
         pocitova_val = chill_val
@@ -464,8 +465,9 @@ if os.path.exists(CSV_AKTUALNE):
                         <div style="font-size: 0.75em; color: #7f8c8d;">Rosný: {dew_val:.1f} °C</div>
                     </div>
                     <div>
-                        <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">VIETOR ({w_dir_display})</div>
+                        <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">VIETOR</div>
                         <div style="font-size: 1.1em; font-weight: bold; color: #2c3e50;">{w_val:.1f} km/h</div>
+                        <div style="font-size: 0.75em; color: #7f8c8d;">{w_dir_display}</div>
                     </div>
                     <div>
                         <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">ZRÁŽKY / UV</div>
@@ -544,7 +546,7 @@ if os.path.exists(CSV_AKTUALNE):
                         <div class="gauge-center-dot"></div>
                     </div>
                     <div class="main-value">{w_val:.1f} km/h</div>
-                    <div class="sub-value">Smer: <b>{w_cardinal}</b> ({w_dir_raw}°)</div>
+                    <div class="sub-value">Smer: <b>{w_cardinal}</b></div>
                 </div>
                 """,
             unsafe_allow_html=True,
@@ -658,7 +660,6 @@ if df is not None and not df.empty:
         & (df_filtered["DateTime"].dt.date <= datum_do)
     ]
 
-  # Automatické vyhľadanie stĺpcov v histórii
   t_max_col = next(
       (
           c
@@ -720,7 +721,7 @@ if df is not None and not df.empty:
       None,
   )
 
-  # --- 1. ABSOLÚTNE REKORDY STANICE (Celá história od 1.7.2026, ignorują filter) ---
+  # --- 1. ABSOLÚTNE REKORDY STANICE ---
   st.subheader("🏆 Absolútne rekordy stanice (od 1. 7. 2026)")
   if t_max_col and t_min_col and w_max_col and r_col:
     abs_max_t_row = df.loc[df[t_max_col].idxmax()]
@@ -826,9 +827,7 @@ if df is not None and not df.empty:
 
     st.markdown("---")
 
-    # --- GRAFY PRE VYBRANÉ OBDOBIE ---
-
-    # 1. Graf teploty
+    # --- GRAFY ---
     fig_temp = go.Figure()
     if t_max_col:
       fig_temp.add_trace(
@@ -853,7 +852,6 @@ if df is not None and not df.empty:
     )
     st.plotly_chart(fig_temp, use_container_width=True)
 
-    # 2. Graf atmosférického tlaku
     if p_col:
       fig_press = go.Figure()
       fig_press.add_trace(
@@ -872,7 +870,6 @@ if df is not None and not df.empty:
       )
       st.plotly_chart(fig_press, use_container_width=True)
 
-    # 3. Graf vetra
     if w_max_col:
       fig_wind = go.Figure()
       fig_wind.add_trace(
@@ -888,7 +885,6 @@ if df is not None and not df.empty:
       )
       st.plotly_chart(fig_wind, use_container_width=True)
 
-    # 4. Graf zrážok
     if r_col:
       fig_rain = go.Figure()
       fig_rain.add_trace(
@@ -904,7 +900,6 @@ if df is not None and not df.empty:
       )
       st.plotly_chart(fig_rain, use_container_width=True)
 
-    # 5. Graf vlhkosti (ak existuje stĺpec)
     if h_col:
       fig_hum = go.Figure()
       fig_hum.add_trace(
@@ -924,6 +919,6 @@ if df is not None and not df.empty:
     st.warning("Pre zvolené obdobie nie sú k dispozícii žiadne dáta.")
 else:
   st.warning(
-      f"Súbor '{CSV_FILE}' nebol nájdený. Skontrolujte prosím jeho prítomność"
+      f"Súbor '{CSV_FILE}' nebol nájdený. Skontrolujte prosím jeho prítomnosť"
       " v adresári."
   )
