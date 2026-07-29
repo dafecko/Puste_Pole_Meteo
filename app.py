@@ -180,6 +180,40 @@ LAT, LON = 49.18, 20.85
 
 
 # --- POMOCNÉ FUNKCIE ---
+def deg_to_cardinal(deg):
+  """Prepočíta stupne na slovenské svetové strany."""
+  try:
+    d = float(str(deg).replace("°", "").strip())
+  except:
+    return str(deg)
+
+  directions = [
+      ("S", 0, 11.25),
+      ("SSV", 11.25, 33.75),
+      ("SV", 33.75, 56.25),
+      ("VSV", 56.25, 78.75),
+      ("V", 78.75, 101.25),
+      ("VJV", 101.25, 123.75),
+      ("JV", 123.75, 146.25),
+      ("JJV", 146.25, 168.75),
+      ("J", 168.75, 191.25),
+      ("JJZ", 191.25, 213.75),
+      ("JZ", 213.75, 236.25),
+      ("ZJZ", 236.25, 258.75),
+      ("Z", 258.75, 281.25),
+      ("ZSZ", 281.25, 303.75),
+      ("SZ", 303.75, 326.25),
+      ("SSZ", 326.25, 348.75),
+      ("S", 348.75, 360),
+  ]
+
+  d = d % 360
+  for name, low, high in directions:
+    if low <= d < high:
+      return name
+  return "S"
+
+
 @st.cache_data
 def load_data():
   if not os.path.exists(CSV_FILE):
@@ -381,9 +415,13 @@ if os.path.exists(CSV_AKTUALNE):
       h_val = get_val(akt, ["vlhkosť", "vlhkost", "hum"])
       p_val = get_val(akt, ["tlak", "bar", "pressure"])
       w_val = get_val(akt, ["vietor", "wind", "wspd"])
-      w_dir = get_str_val(akt, ["smer", "wdir"])
+      w_dir_raw = get_str_val(akt, ["smer", "wdir"])
       r_val = get_val(akt, ["zrážky", "zrazky", "rain"])
       uv_val = get_val(akt, ["uv", "uvi"])
+
+      # Prepočet smeru vetra na svetovú stranu
+      w_cardinal = deg_to_cardinal(w_dir_raw)
+      w_dir_display = f"{w_cardinal} ({w_dir_raw}°)" if w_dir_raw != "-" else "-"
 
       if t_val <= 10.0 and chill_val != 0:
         pocitova_val = chill_val
@@ -426,7 +464,7 @@ if os.path.exists(CSV_AKTUALNE):
                         <div style="font-size: 0.75em; color: #7f8c8d;">Rosný: {dew_val:.1f} °C</div>
                     </div>
                     <div>
-                        <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">VIETOR ({w_dir})</div>
+                        <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">VIETOR ({w_dir_display})</div>
                         <div style="font-size: 1.1em; font-weight: bold; color: #2c3e50;">{w_val:.1f} km/h</div>
                     </div>
                     <div>
@@ -506,7 +544,7 @@ if os.path.exists(CSV_AKTUALNE):
                         <div class="gauge-center-dot"></div>
                     </div>
                     <div class="main-value">{w_val:.1f} km/h</div>
-                    <div class="sub-value">Smer: {w_dir}</div>
+                    <div class="sub-value">Smer: <b>{w_cardinal}</b> ({w_dir_raw}°)</div>
                 </div>
                 """,
             unsafe_allow_html=True,
@@ -682,7 +720,7 @@ if df is not None and not df.empty:
       None,
   )
 
-  # --- 1. ABSOLÚTNE REKORDY STANICE (Celá história od 1.7.2026, ignorujú filter) ---
+  # --- 1. ABSOLÚTNE REKORDY STANICE (Celá história od 1.7.2026, ignorują filter) ---
   st.subheader("🏆 Absolútne rekordy stanice (od 1. 7. 2026)")
   if t_max_col and t_min_col and w_max_col and r_col:
     abs_max_t_row = df.loc[df[t_max_col].idxmax()]
@@ -886,6 +924,6 @@ if df is not None and not df.empty:
     st.warning("Pre zvolené obdobie nie sú k dispozícii žiadne dáta.")
 else:
   st.warning(
-      f"Súbor '{CSV_FILE}' nebol nájdený. Skontrolujte prosím jeho prítomnosť"
+      f"Súbor '{CSV_FILE}' nebol nájdený. Skontrolujte prosím jeho prítomność"
       " v adresári."
   )
