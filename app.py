@@ -361,6 +361,7 @@ if os.path.exists(CSV_AKTUALNE):
         return "-"
 
       t_val = get_val(akt, ["teplota", "temp"])
+      chill_val = get_val(akt, ["chill", "wind chill"])
       heat_val = get_val(akt, ["heat", "heat index"])
       dew_val = get_val(akt, ["dew", "rosný"])
       h_val = get_val(akt, ["vlhkosť", "vlhkost", "hum"])
@@ -369,6 +370,19 @@ if os.path.exists(CSV_AKTUALNE):
       w_dir = get_str_val(akt, ["smer", "wdir"])
       r_val = get_val(akt, ["zrážky", "zrazky", "rain"])
       uv_val = get_val(akt, ["uv", "uvi"])
+
+      # Výber správnej pocitovej teploty (Wind Chill pre chlad, Heat Index pre teplo)
+      if t_val <= 10.0 and chill_val != 0:
+        pocitova_val = chill_val
+      elif t_val >= 25.0 and heat_val != 0:
+        pocitova_val = heat_val
+      else:
+        if heat_val != 0 and heat_val != t_val:
+          pocitova_val = heat_val
+        elif chill_val != 0 and chill_val != t_val:
+          pocitova_val = chill_val
+        else:
+          pocitova_val = t_val
 
       st.markdown(
           f"""
@@ -385,9 +399,12 @@ if os.path.exists(CSV_AKTUALNE):
                 </div>
                 <div style="display: flex; gap: 20px; flex-wrap: wrap; text-align: right;">
                     <div>
-                        <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">TEPLOTA / POCIT</div>
+                        <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">TEPLOTA</div>
                         <div style="font-size: 1.1em; font-weight: bold; color: #2c3e50;">{t_val:.1f} °C</div>
-                        <div style="font-size: 0.75em; color: #7f8c8d;">Heat: {heat_val:.1f} °C</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">POCITOVÁ TEPLOTA</div>
+                        <div style="font-size: 1.1em; font-weight: bold; color: #2c3e50;">{pocitova_val:.1f} °C</div>
                     </div>
                     <div>
                         <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">TLAK</div>
@@ -439,7 +456,7 @@ if os.path.exists(CSV_AKTUALNE):
                         </div>
                     </div>
                     <div class="main-value">{t_val:.1f} °C</div>
-                    <div class="sub-value">Pocit: {heat_val:.1f} °C</div>
+                    <div class="sub-value">Pocitová teplota: {pocitova_val:.1f} °C</div>
                 </div>
                 """,
             unsafe_allow_html=True,
