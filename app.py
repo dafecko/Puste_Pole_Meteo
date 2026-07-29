@@ -166,6 +166,7 @@ st.markdown(
 
 CSV_FILE = "meteo_puste_pole_v2.csv"
 CSV_AKTUALNE = "meteo_aktualne.csv"
+LAT, LON = 49.18, 20.85
 
 
 @st.cache_data
@@ -212,11 +213,73 @@ def load_data():
   return df
 
 
+@st.cache_data(ttl=1800)
+def get_weather_data(lat, lon):
+  url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode&timezone=Europe/Bratislava"
+  try:
+    response = requests.get(url)
+    data = response.json()
+    return data.get("current", None), data.get("daily", None)
+  except Exception as e:
+    return None, None
+
+
+def get_weather_icon(code):
+  if code == 0:
+    return "☀️"  # Jasno
+  elif code in [1, 2]:
+    return "⛅"  # Polooblačno
+  elif code == 3:
+    return "☁️"  # Oblačno
+  elif code in [45, 48]:
+    return "🌫️"  # Hmla
+  elif code in [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82]:
+    return "🌧️"  # Dážď / Prehánky
+  elif code in [71, 73, 75, 77, 85, 86]:
+    return "❄️"  # Sneh
+  elif code in [95, 96, 99]:
+    return "⛈️"  # Búrka
+  else:
+    return "🌤️"
+
+
+def get_weather_description(code):
+  if code == 0:
+    return "Jasno"
+  elif code in [1, 2]:
+    return "Polooblačno"
+  elif code == 3:
+    return "Oblačno"
+  elif code in [45, 48]:
+    return "Hmla"
+  elif code in [51, 53, 55, 56, 57]:
+    return "Mrholenie"
+  elif code in [61, 63, 65, 66, 67]:
+    return "Dážď"
+  elif code in [71, 73, 75, 77]:
+    return "Sneh"
+  elif code in [80, 81, 82]:
+    return "Prehánky"
+  elif code in [85, 86]:
+    return "Snehové prehánky"
+  elif code in [95, 96, 99]:
+    return "Búrka"
+  else:
+    return "Oblačno"
+
+
 # --- HLAVNÁ STRÁNKA ---
 st.title("🌤️ Meteorologický Web Dashboard - Pusté Pole")
 
 # 1. SEKCIA: AKTUÁLNE ÚDAJE
 st.subheader("⚡ Aktuálny stav počasia")
+
+current_api_data, forecast_data = get_weather_data(LAT, LON)
+curr_code = (
+    current_api_data.get("weather_code", 0) if current_api_data else 0
+)
+curr_icon = get_weather_icon(curr_code)
+curr_desc = get_weather_description(curr_code)
 
 if os.path.exists(CSV_AKTUALNE):
   try:
@@ -252,6 +315,44 @@ if os.path.exists(CSV_AKTUALNE):
       w_val = get_val(akt, ["vietor", "wind", "wspd"])
       r_val = get_val(akt, ["zrážky", "zrazky", "rain"])
       uv_val = get_val(akt, ["uv", "uvi"])
+
+      # Súhrnný panel s ikonou a vypísanými hodnotami na začiatku
+      st.markdown(
+          f"""
+            <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 20px;">
+                    <div style="font-size: 3.5em;">{curr_icon}</div>
+                    <div>
+                        <div style="font-size: 1.3em; font-weight: bold; color: #2c3e50;">{curr_desc}</div>
+                        <div style="font-size: 0.9em; color: #6c757d; margin-top: 2px;">Pusté Pole • Aktuálny stav zo stanice</div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 25px; flex-wrap: wrap; text-align: right;">
+                    <div>
+                        <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">TEPLOTA</div>
+                        <div style="font-size: 1.2em; font-weight: bold; color: #2c3e50;">{t_val:.1f} °C</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">VLHKOSŤ</div>
+                        <div style="font-size: 1.2em; font-weight: bold; color: #2c3e50;">{h_val:.0f} %</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">VIETOR</div>
+                        <div style="font-size: 1.2em; font-weight: bold; color: #2c3e50;">{w_val:.1f} km/h</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">ZRÁŽKY</div>
+                        <div style="font-size: 1.2em; font-weight: bold; color: #2c3e50;">{r_val:.1f} mm</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.8em; color: #6c757d; font-weight: 600;">UV INDEX</div>
+                        <div style="font-size: 1.2em; font-weight: bold; color: #2c3e50;">{uv_val:.1f}</div>
+                    </div>
+                </div>
+            </div>
+            """,
+          unsafe_allow_html=True,
+      )
 
       temp_pct = min(100, max(0, ((t_val + 20) / 70) * 100))
       rain_pct = min(100, max(0, (r_val / 50) * 100))
@@ -383,42 +484,6 @@ st.markdown("---")
 
 # 2. SEKCIA: PREDPOVEĎ POČASIA S DYNAMICKÝMI IKONAMI
 st.subheader("🔮 Predpoveď počasia na najbližšie dni")
-
-
-@st.cache_data(ttl=3600)
-def get_weather_forecast(lat, lon):
-  url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode&timezone=Europe/Bratislava"
-  try:
-    response = requests.get(url)
-    data = response.json()
-    return data.get("daily", None)
-  except Exception as e:
-    st.error(f"Nepodarilo sa načítať predpoveď: {e}")
-    return None
-
-
-def get_weather_icon(code):
-  # WMO Weather codes pre Open-Meteo
-  if code == 0:
-    return "☀️"  # Jasno
-  elif code in [1, 2]:
-    return "⛅"  # Polooblačno
-  elif code == 3:
-    return "☁️"  # Oblačno
-  elif code in [45, 48]:
-    return "🌫️"  # Hmla
-  elif code in [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82]:
-    return "🌧️"  # Dážď / Prehánky
-  elif code in [71, 73, 75, 77, 85, 86]:
-    return "❄️"  # Sneh
-  elif code in [95, 96, 99]:
-    return "⛈️"  # Búrka
-  else:
-    return "🌤️"  # Predvolené
-
-
-LAT, LON = 49.18, 20.85
-forecast_data = get_weather_forecast(LAT, LON)
 
 if forecast_data:
   days = forecast_data["time"]
