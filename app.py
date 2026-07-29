@@ -14,7 +14,7 @@ st.set_page_config(
 # Automatické obnovenie stránky každých 5 minút (300 000 ms)
 count = st_autorefresh(interval=300000, limit=None, key="meteo_autorefresh")
 
-# --- VLASTNÉ CSS ŠTÝLY ---
+# --- VLASTNÉ CSS ŠTÝLY S MOBILNOU OPTIMALIZÁCIOU ---
 st.markdown(
     """
     <style>
@@ -30,6 +30,11 @@ st.markdown(
         margin-bottom: 10px;
         height: 255px;
         justify-content: space-between;
+        transition: transform 0.2s ease;
+    }
+    .weather-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.12);
     }
     .card-title {
         font-size: 0.95em;
@@ -41,6 +46,7 @@ st.markdown(
         align-items: center;
         justify-content: center;
         line-height: 1.2;
+        cursor: help;
     }
     .main-value {
         font-size: 1.5em;
@@ -193,6 +199,17 @@ st.markdown(
         font-size: 0.88em;
         opacity: 0.95;
     }
+
+    /* Responzívna optimalizácia pre mobilné zariadenia */
+    @media (max-width: 768px) {
+        .weather-card {
+            height: auto;
+            margin-bottom: 15px;
+        }
+        .main-value {
+            font-size: 1.3em;
+        }
+    }
     </style>
 """,
     unsafe_allow_html=True,
@@ -206,7 +223,6 @@ LAT, LON = 49.18, 20.85
 
 # --- POMOCNÉ FUNKCIE ---
 def deg_to_cardinal(deg):
-  """Univerzálny prepoistný prevod pre prípad číselných alebo textových hodnôt."""
   if pd.isna(deg) or deg == "-" or deg == "":
     return "-"
 
@@ -220,7 +236,7 @@ def deg_to_cardinal(deg):
   try:
     d = float(deg_str)
   except ValueError:
-    return str(deg).upper()  # Ak je už slovne, vráti text
+    return str(deg).upper()
 
   d = d % 360
 
@@ -522,7 +538,6 @@ if os.path.exists(CSV_AKTUALNE):
             "icon": "💨",
         })
 
-      # Zobrazenie výstražných bannerov, ak nejaké aktívne existujú
       if active_warnings:
         for alert in active_warnings:
           st.markdown(
@@ -590,18 +605,52 @@ if os.path.exists(CSV_AKTUALNE):
       wind_angle = min(135, max(-135, (w_val / 50) * 270 - 135))
       uv_angle = min(135, max(-135, (uv_val / 12) * 270 - 135))
 
+      # Dynamické texty pre tooltips (vysvetlivky)
+      if h_val < 30:
+        hum_desc = "Suchý vzduch (pod 30%)"
+      elif h_val <= 60:
+        hum_desc = "Ideálna vlhkosť (30% - 60%)"
+      else:
+        hum_desc = "Vysoká vlhkosť / dusno (nad 60%)"
+
+      if uv_val < 3:
+        uv_desc = (
+            f"UV index {uv_val:.1f}: Nízke riziko. Bezpečná úroveň pre pobyt"
+            " vonku."
+        )
+      elif uv_val < 6:
+        uv_desc = (
+            f"UV index {uv_val:.1f}: Stredné riziko. Odporúča sa"
+            " slnečné okuliare a krém."
+        )
+      elif uv_val < 8:
+        uv_desc = (
+            f"UV index {uv_val:.1f}: Vysoké riziko! Obmedzte pobyt na slnku"
+            " napoludnie."
+        )
+      elif uv_val < 11:
+        uv_desc = (
+            f"UV index {uv_val:.1f}: Veľmi vysoké riziko! Hrozí rýchle"
+            " spálenie."
+        )
+      else:
+        uv_desc = (
+            f"UV index {uv_val:.1f}: Extrémne riziko! Nevychádzajte na"
+            " priame slnko."
+        )
+
       col1, col2, col3, col4, col5 = st.columns(5)
       with col1:
         st.markdown(
             f"""
                 <div class="weather-card">
-                    <div class="card-title">Teplota</div>
+                    <div class="card-title" title="Aktuálna teplota vzduchu. Pocitová teplota zahŕňa vplyv vetra alebo vlhkosti.">Teplota ℹ️</div>
                     <div class="bar-container">
                         <div class="bar-scale"><span>50°</span><span>25°</span><span>0°</span><span>-20°</span></div>
                         <div class="thermometer-box"><div class="thermometer-fill" style="height: {temp_pct}%;"></div></div>
                     </div>
                     <div class="main-value">{t_val:.1f} °C</div>
-                    <div class="sub-value">Pocitová teplota: {pocitova_val:.1f} °C</div>
+                    <div class="sub-value">Pocitová: {pocitova_val:.1f} °C</div>
                 </div>
                 """,
             unsafe_allow_html=True,
@@ -610,7 +659,7 @@ if os.path.exists(CSV_AKTUALNE):
         st.markdown(
             f"""
                 <div class="weather-card">
-                    <div class="card-title">Vlhkosť vzduchu</div>
+                    <div class="card-title" title="{hum_desc}">Vlhkosť vzduchu ℹ️</div>
                     <div class="gauge-circle gauge-hum">
                         <div class="scale-val s-0">0</div><div class="scale-val s-20">20</div><div class="scale-val s-40">40</div><div class="scale-val s-60">60</div><div class="scale-val s-80">80</div><div class="scale-val s-100">100</div>
                         <div class="scale-unit">%</div>
@@ -627,7 +676,7 @@ if os.path.exists(CSV_AKTUALNE):
         st.markdown(
             f"""
                 <div class="weather-card">
-                    <div class="card-title">Atmosférický tlak</div>
+                    <div class="card-title" title="Atmosférický tlak prepočítaný na hladinu mora. Normálny tlak je okolo 1013 hPa.">Atmosférický tlak ℹ️</div>
                     <div class="bar-container">
                         <div class="bar-scale"><span>1050</span><span>1020</span><span>980</span><span>950</span></div>
                         <div class="pressure-box"><div class="pressure-fill" style="height: {press_pct}%;"></div></div>
@@ -642,7 +691,7 @@ if os.path.exists(CSV_AKTUALNE):
         st.markdown(
             f"""
                 <div class="weather-card">
-                    <div class="card-title">Rýchlosť vetra</div>
+                    <div class="card-title" title="Aktuálna rýchlosť a slovný smer prúdenia vetra.">Rýchlosť vetra ℹ️</div>
                     <div class="gauge-circle gauge-wind">
                         <div class="scale-val s-0">0</div><div class="scale-val s-20">10</div><div class="scale-val s-40">20</div><div class="scale-val s-60">30</div><div class="scale-val s-80">40</div><div class="scale-val s-100">50</div>
                         <div class="scale-unit">km/h</div>
@@ -659,7 +708,7 @@ if os.path.exists(CSV_AKTUALNE):
         st.markdown(
             f"""
                 <div class="weather-card">
-                    <div class="card-title">UV index</div>
+                    <div class="card-title" title="{uv_desc}">UV index ℹ️</div>
                     <div class="gauge-circle gauge-uv">
                         <div class="scale-val s-0">0</div><div class="scale-val s-20">2</div><div class="scale-val s-40">5</div><div class="scale-val s-60">7</div><div class="scale-val s-80">10</div><div class="scale-val s-100">12</div>
                         <div class="scale-unit">UV</div>
