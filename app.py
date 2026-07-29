@@ -872,7 +872,7 @@ with tab_historia:
 
       acol1, acol2, acol3, acol4 = st.columns(4)
       acol1.metric(
-          "🔴 Abs. Max Teplota",
+          "🌡️ Abs. Max Teplota",
           f"{abs_max_t_row[t_max_col]:.1f} °C",
           delta=str(
               abs_max_t_row["DateTime"].strftime("%d.%m.%Y")
@@ -881,7 +881,7 @@ with tab_historia:
           ),
       )
       acol2.metric(
-          "🔵 Abs. Min Teplota",
+          "❄️ Abs. Min Teplota",
           f"{abs_min_t_row[t_min_col]:.1f} °C",
           delta=str(
               abs_min_t_row["DateTime"].strftime("%d.%m.%Y")
@@ -949,15 +949,16 @@ with tab_historia:
           else 0
       )
 
+      # Pridané pekné meteo ikony namiesto farebných bodiek
       col1, col2, col3, col4 = st.columns(4)
-      col1.metric("🔴 Max Teplota", f"{max_temp:.1f} °C")
-      col2.metric("🔵 Min Teplota", f"{min_temp:.1f} °C")
-      col3.metric("🟠 Priemerná Teplota", f"{avg_temp:.1f} °C")
-      col4.metric("🟣 Max Vietor", f"{max_wind:.1f} km/h")
+      col1.metric("📈 Max Teplota", f"{max_temp:.1f} °C")
+      col2.metric("📉 Min Teplota", f"{min_temp:.1f} °C")
+      col3.metric("🌡️ Priemerná Teplota", f"{avg_temp:.1f} °C")
+      col4.metric("💨 Max Vietor", f"{max_wind:.1f} km/h")
 
       ecol1, ecol2, ecol3 = st.columns(3)
       ecol1.metric("🌧️ Celkové Zrážky", f"{total_rain:.1f} mm")
-      ecol2.metric("🌧️ Maximálne Zrážky", f"{max_rain:.1f} mm")
+      ecol2.metric("⛈️ Maximálne Zrážky", f"{max_rain:.1f} mm")
       ecol3.metric("📅 Počet záznamov", f"{len(df_filtered)}")
 
       st.markdown("---")
