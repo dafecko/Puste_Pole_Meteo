@@ -1,6 +1,7 @@
 import datetime
 import os
 import pandas as pd
+import plotly.express as px
 import plotly.graph_objects as go
 import requests
 import streamlit as st
@@ -772,10 +773,14 @@ with tab_historia:
     max_d = df["DateTime"].max().date()
     df_filtered = df.copy()
 
+    # Premenné pre určenie predchádzajúceho obdobia na výpočet Deltas
+    df_prev = pd.DataFrame()
+
     if "2" in volba:
       dostupne_roky = sorted(df["DateTime"].dt.year.unique())
       vybrany_rok = st.sidebar.selectbox("Vyberte rok", dostupne_roky)
       df_filtered = df_filtered[df_filtered["DateTime"].dt.year == vybrany_rok]
+      df_prev = df[df["DateTime"].dt.year == vybrany_rok - 1]
     elif "3" in volba:
       dostupne_roky = sorted(df["DateTime"].dt.year.unique())
       vybrany_rok = st.sidebar.selectbox("Vyberte rok", dostupne_roky)
@@ -801,6 +806,13 @@ with tab_historia:
           (df_filtered["DateTime"].dt.year == vybrany_rok)
           & (df_filtered["DateTime"].dt.month == vybrany_mesiac)
       ]
+      # Predchádzajúci mesiac
+      prev_month = vybrany_mesiac - 1 if vybrany_mesiac > 1 else 12
+      prev_year = vybrany_rok if vybrany_mesiac > 1 else vybrany_rok - 1
+      df_prev = df[
+          (df["DateTime"].dt.year == prev_year)
+          & (df["DateTime"].dt.month == prev_month)
+      ]
     elif "4" in volba:
       datum_od = st.sidebar.date_input("Dátum od", min_d)
       datum_do = st.sidebar.date_input("Dátum do", max_d)
@@ -808,6 +820,16 @@ with tab_historia:
           (df_filtered["DateTime"].dt.date >= datum_od)
           & (df_filtered["DateTime"].dt.date <= datum_do)
       ]
+      delta_dni = (datum_do - datum_od).days + 1
+      prev_datum_do = datum_od - datetime.timedelta(days=1)
+      prev_datum_od = prev_datum_do - datetime.timedelta(days=delta_dni - 1)
+      df_prev = df[
+          (df["DateTime"].dt.date >= prev_datum_od)
+          & (df["DateTime"].dt.date <= prev_datum_do)
+      ]
+    else:
+      df_filtered = df.copy()
+      df_prev = pd.DataFrame()  # Celé obdobie nemá predchádzajúce porovnanie
 
     t_max_col = next(
         (
@@ -858,6 +880,22 @@ with tab_historia:
             c
             for c in df.columns
             if any(k in c.lower() for k in ["vlhk", "hum"])
+        ),
+        None,
+    )
+    w_dir_col = next(
+        (
+            c
+            for c in df.columns
+            if any(k in c.lower() for k in ["smer", "wdir"])
+        ),
+        None,
+    )
+    w_speed_col = next(
+        (
+            c
+            for c in df.columns
+            if any(k in c.lower() for k in ["vietor", "wind", "wspd"])
         ),
         None,
     )
@@ -949,15 +987,64 @@ with tab_historia:
           else 0
       )
 
-      # Pridané pekné meteo ikony namiesto farebných bodiek
+      # Výpočet deltas oproti predchádzajúcemu obdobiu, ak existuje
+      delta_max_t, delta_min_t, delta_avg_t, delta_wind, delta_rain = (
+          None,
+          None,
+          None,
+          None,
+          None,
+      )
+      if not df_prev.empty:
+        prev_max_temp = (
+            df_prev[t_max_col].max()
+            if t_max_col and not df_prev[t_max_col].isna().all()
+            else None
+        )
+        prev_min_temp = (
+            df_prev[t_min_col].min()
+            if t_min_col and not df_prev[t_min_col].isna().all()
+            else None
+        )
+        prev_avg_temp = (
+            df_prev[t_avg_col].mean()
+            if t_avg_col and not df_prev[t_avg_col].isna().all()
+            else None
+        )
+        prev_max_wind = (
+            df_prev[w_max_col].max()
+            if w_max_col and not df_prev[w_max_col].isna().all()
+            else None
+        )
+        prev_total_rain = (
+            df_prev[r_col].sum()
+            if r_col and not df_prev[r_col].isna().all()
+            else None
+        )
+
+        if prev_max_temp is not None:
+          delta_max_t = f"{max_temp - prev_max_temp:+.1f} °C vs min. obdobie"
+        if prev_min_temp is not None:
+          delta_min_t = f"{min_temp - prev_min_temp:+.1f} °C vs min. obdobie"
+        if prev_avg_temp is not None:
+          delta_avg_t = f"{avg_temp - prev_avg_temp:+.1f} °C vs min. obdobie"
+        if prev_max_wind is not None:
+          delta_wind = f"{max_wind - prev_max_wind:+.1f} km/h vs min. obdobie"
+        if prev_total_rain is not None:
+          delta_rain = f"{total_rain - prev_total_rain:+.1f} mm vs min. obdobie"
+
       col1, col2, col3, col4 = st.columns(4)
-      col1.metric("📈 Max Teplota", f"{max_temp:.1f} °C")
-      col2.metric("📉 Min Teplota", f"{min_temp:.1f} °C")
-      col3.metric("🌡️ Priemerná Teplota", f"{avg_temp:.1f} °C")
-      col4.metric("💨 Max Vietor", f"{max_wind:.1f} km/h")
+      col1.metric("📈 Max Teplota", f"{max_temp:.1f} °C", delta=delta_max_t)
+      col2.metric("📉 Min Teplota", f"{min_temp:.1f} °C", delta=delta_min_t)
+      col3.metric(
+          "🌡️ Priemerná Teplota", f"{avg_temp:.1f} °C", delta=delta_avg_t
+      )
+      col4.metric("💨 Max Vietor", f"{max_wind:.1f} km/h", delta=delta_wind)
 
       ecol1, ecol2, ecol3 = st.columns(3)
-      ecol1.metric("🌧️ Celkové Zrážky", f"{total_rain:.1f} mm")
+      ecol1.metric(
+          "🌧️ Celkové Zrážky", f"{total_rain:.1f} mm", delta=delta_rain
+      )
       ecol2.metric("⛈️ Maximálne Zrážky", f"{max_rain:.1f} mm")
       ecol3.metric("📅 Počet záznamov", f"{len(df_filtered)}")
 
@@ -971,17 +1058,17 @@ with tab_historia:
       )
 
       if view_mode == "📈 Grafy":
-        gcol1, gcol2 = st.columns(2)
-
-        # Optimalizácia pre mobilné zariadenia (legenda pod grafom, skrytý toolbar)
+        # Konfigurácia a layout optimalizovaný pre responzivitu (automatické usporiadanie pod seba na mobile)
         chart_config = {"displayModeBar": False}
         layout_updates = dict(
-            height=320,
+            height=300,
             margin=dict(l=10, r=10, t=40, b=10),
             legend=dict(
                 orientation="h", yanchor="bottom", y=-0.4, xanchor="center", x=0.5
             ),
         )
+
+        gcol1, gcol2 = st.columns(2)
 
         with gcol1:
           fig_temp = go.Figure()
@@ -1071,6 +1158,48 @@ with tab_historia:
                 theme="streamlit",
                 config=chart_config,
             )
+
+        # 🧭 NOVINKA: Veterná ružica (Wind Rose) ak sú k dispozícii dáta o smere a rýchlosti vetra
+        if w_dir_col and w_speed_col:
+          st.markdown("---")
+          st.subheader("🧭 Veterná ružica (Rozloženie smerov vetra)")
+
+          # Príprava dát pre polárny graf
+          df_wind_rose = df_filtered.dropna(
+              subset=[w_dir_col, w_speed_col]
+          ).copy()
+          if not df_wind_rose.empty:
+            # Pokus o konverziu smeru na čísla ak sú v stupňoch
+            try:
+              df_wind_rose["dir_deg"] = (
+                  df_wind_rose[w_dir_col]
+                  .astype(str)
+                  .str.replace("°", "")
+                  .astype(float)
+              )
+              fig_rose = px.bar_polar(
+                  df_wind_rose,
+                  r=w_speed_col,
+                  theta="dir_deg",
+                  color=w_speed_col,
+                  color_continuous_scale="Viridis",
+                  template="plotly",
+                  title="Smer a rýchlosť vetra v polárnej schéme",
+              )
+              fig_rose.update_layout(
+                  height=400, margin=dict(l=20, r=20, t=50, b=20)
+              )
+              st.plotly_chart(
+                  fig_rose,
+                  use_container_width=True,
+                  theme="streamlit",
+                  config=chart_config,
+              )
+            except Exception:
+              st.info(
+                  "Smer vetra v CSV súbore nie je v číselnom formáte (stupne"
+                  " 0-360), preto sa polárna veterná ružica nedá vykresliť."
+              )
       else:
         st.subheader("📋 Podrobná tabuľka dát")
         df_table = df_filtered.sort_values("DateTime", ascending=False).copy()
@@ -1094,6 +1223,15 @@ with tab_historia:
           df_table = df_table[cols]
 
         st.dataframe(df_table, use_container_width=True)
+
+        # 📥 NOVINKA: Tlačidlo na stiahnutie vyfiltrovaných dát v CSV
+        csv_export_data = df_table.to_csv(index=False, sep=";").encode("utf-8")
+        st.download_button(
+            label="📥 Stiahnuť vyfiltrované dáta (CSV)",
+            data=csv_export_data,
+            file_name="meteo_puste_pole_vyber.csv",
+            mime="text/csv",
+        )
 
     else:
       st.warning("Pre zvolené obdobie nie sú k dispozícii žiadne dáta.")
