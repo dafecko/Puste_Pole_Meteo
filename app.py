@@ -2,9 +2,13 @@ import os
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+from streamlit_autorefresh import st_autorefresh
 
 # Nastavenie stránky na šírku
 st.set_page_config(page_title="Meteo Web Dashboard - Pusté Pole", layout="wide")
+
+# Automatické obnovenie stránky každých 5 minút (300 000 ms)
+count = st_autorefresh(interval=300000, limit=None, key="meteo_autorefresh")
 
 # Vlastné CSS štýly pre grafické karty, detailné stupnice a opravené farebné škály ciferníkov
 st.markdown(
@@ -90,7 +94,7 @@ st.markdown(
         box-shadow: inset 0 2px 4px rgba(0,0,0,0.05), 0 2px 6px rgba(0,0,0,0.05);
     }
     
-    /* Farebné okraje pre jednotlivé typy ciferníkov (opravený plný 270-stupňový rozsah) */
+    /* Farebné okraje pre jednotlivé typy ciferníkov (plný 270-stupňový rozsah) */
     .gauge-hum {
         border: 5px solid transparent;
         background-image: linear-gradient(#ffffff, #ffffff), conic-gradient(from 225deg, #e67e22 0deg, #2ecc71 135deg, #3498db 270deg, transparent 270deg);
@@ -377,7 +381,7 @@ else:
 
 st.markdown("---")
 
-# 2. NAČÍTANIE HISTORICKÝch DÁT PRE GRAFY
+# 2. NAČÍTANIE HISTORICKÝCH DÁT PRE GRAFY
 df = load_data()
 
 if df is None or df.empty:
