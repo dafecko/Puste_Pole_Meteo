@@ -122,7 +122,10 @@ def scrape_weather():
   w_val_ms = clean_val(vietor)
   w_val = round(w_val_ms * 3.6, 1)
 
-  smer_str = str(smer_vetra).strip()
+  # Dôsledné vyčistenie smeru vetra od znakov °, "deg" a medzier už pri zbere
+  smer_str = (
+      str(smer_vetra).replace("°", "").replace("deg", "").strip()
+  )
   if not smer_str:
     smer_str = "-"
 
