@@ -417,7 +417,7 @@ if forecast_data and "sunrise" in forecast_data and "sunset" in forecast_data:
     pass
 moon_phase_str = get_moon_phase_info()
 
-# Načítanie aktuálnych dát zo súboru (bez cache, aby boli vždy čerstvé pri otvorení)
+# Načítanie aktuálnych dát zo súboru
 t_val, chill_val, heat_val, dew_val, h_val, p_val, w_val, r_val, uv_val = (
     0.0,
     0.0,
@@ -722,15 +722,29 @@ with tab_aktualne:
 
     num_days = len(days)
     cols = st.columns(num_days)
+
+    # Slovenské názvy dní
+    sk_dni = {
+        "Monday": "Pondelok",
+        "Tuesday": "Utorok",
+        "Wednesday": "Streda",
+        "Thursday": "Štvrtok",
+        "Friday": "Piatok",
+        "Saturday": "Sobota",
+        "Sunday": "Nedeľa",
+    }
+
     for i in range(num_days):
       with cols[i]:
-        d_parts = days[i].split("-")
-        formatted_date = f"{int(d_parts[2])}.{int(d_parts[1])}."
+        date_obj = datetime.datetime.strptime(days[i], "%Y-%m-%d")
+        nazov_dna = sk_dni.get(date_obj.strftime("%A"), "")
+        formatted_date = f"{nazov_dna}<br>{date_obj.day}.{date_obj.month}."
+
         icon = get_weather_icon(w_codes[i])
         st.markdown(
             f"""
                 <div class="weather-card">
-                    <div class="card-title">{formatted_date}</div>
+                    <div class="card-title" style="height: 45px; line-height: 1.2;">{formatted_date}</div>
                     <div style="font-size: 1.8em; margin: 4px 0;">{icon}</div>
                     <div style="font-size: 0.85em; color: #e74c3c; margin: 2px 0;">Max: <b>{t_max_f[i]:.1f}°C</b></div>
                     <div style="font-size: 0.85em; color: #3498db; margin: 2px 0;">Min: <b>{t_min_f[i]:.1f}°C</b></div>
