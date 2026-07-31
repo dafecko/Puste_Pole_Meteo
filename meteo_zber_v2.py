@@ -1,148 +1,97 @@
-import csv
-import os
-from datetime import datetime
-from zoneinfo import ZoneInfo
-import requests
-import subprocess
-
-# ==========================================
-# NASTAVENIA STANICE
-# ==========================================
-DEVICE_ID = "8797717349"
-CSV_FILE = "meteo_puste_pole_v2.csv"
-MS_TO_KMH = 3.6
-
-
-def to_sk_num(value, scale=1.0, decimals=1):
-  """Prevedie číslo alebo zoznam [timestamp, hodnota] na slovenský formát."""
-  if value is None or value == "":
-    return ""
-
-  if isinstance(value, list) and len(value) >= 2:
-    value = value[1]
-
-  try:
-    val_float = float(value)
-    if isinstance(value, int) and abs(value) >= 100:
-      val_float = val_float / 10.0
-    elif isinstance(value, str) and value.isdigit() and len(value) >= 3:
-      val_float = float(value) / 10.0
-
-    val_float = val_float * scale
-    return f"{val_float:.{decimals}f}".replace(".", ",")
-  except (ValueError, TypeError):
-    return str(value)
-
-
 def main():
-  # Použitie slovenského času namiesto UTC servera
-  now = datetime.now(ZoneInfo("Europe/Bratislava"))
-  datum_str = now.strftime("%d.%m.%Y")
-  cas_str = now.strftime("%H:%M")
+    now = datetime.now(ZoneInfo("Europe/Bratislava"))
+    datum_str = now.strftime("%d.%m.%Y")
+    cas_str = now.strftime("%H:%M")
 
-  print(
-      f"[{datum_str} {cas_str}] Pripájam sa na Weathercloud pre denný"
-      " export..."
-  )
+    print(f"[{datum_str} {cas_str}] Pripájam sa na Weathercloud pre denný export...")
 
-  session = requests.Session()
-  session.headers.update({
-      "User-Agent": (
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,"
-          " like Gecko) Chrome/124.0.0.0 Safari/537.36"
-      ),
-      "Accept": "application/json, text/javascript, */*; q=0.01",
-      "Accept-Language": "sk-SK,sk;q=0.9,en;q=0.8",
-      "X-Requested-With": "XMLHttpRequest",
-      "Referer": f"https://app.weathercloud.net/d{DEVICE_ID}",
-  })
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,"
+            " like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Accept": "application/json, text/javascript, */*; q=0.01",
+        "Accept-Language": "sk-SK,sk;q=0.9,en;q=0.8",
+        "X-Requested-With": "XMLHttpRequest",
+        "Referer": f"https://app.weathercloud.net/d{DEVICE_ID}",
+    })
 
-  url_values = f"https://app.weathercloud.net/device/values?code={DEVICE_ID}"
-  url_stats = f"https://app.weathercloud.net/device/stats?code={DEVICE_ID}"
+    url_values = f"https://app.weathercloud.net/device/values?code={DEVICE_ID}"
+    url_stats = f"https://app.weathercloud.net/device/stats?code={DEVICE_ID}"
 
-  data_val, data_stats = {}, {}
+    data_val, data_stats = {}, {}
 
-  try:
-    r1 = session.get(url_values, timeout=8)
-    if r1.status_code == 200:
-      data_val = r1.json()
-  except Exception:
-    pass
+    try:
+        r1 = session.get(url_values, timeout=8)
+        if r1.status_code == 200:
+            data_val = r1.json()
+    except Exception:
+        pass
 
-  try:
-    r2 = session.get(url_stats, timeout=8)
-    if r2.status_code == 200:
-      data_stats = r2.json()
-  except Exception:
-    pass
+    try:
+        r2 = session.get(url_stats, timeout=8)
+        if r2.status_code == 200:
+            data_stats = r2.json()
+    except Exception:
+        pass
 
-  # Teploty
-  temp_max = data_stats.get("temp_day_max")
-  temp_min = data_stats.get("temp_day_min")
-  temp_avg = data_val.get("temp")
+    # Teploty
+    temp_max = data_stats.get("temp_day_max")
+    temp_avg = data_val.get("temp")
+    temp_min = data_stats.get("temp_day_min")
 
-  # Vlhkosť a tlak
-  hum_avg = data_val.get("hum")
-  bar_avg = data_val.get("bar")
+    # Vietor
+    wind_max = (
+        data_stats.get("wspd_day_max")
+        or data_stats.get("wgust")
+        or data_stats.get("wspd_max")
+        or data_val.get("wspd")
+    )
+    wind_avg = (
+        data_val.get("wspdavg")
+        or data_val.get("wspd")
+        or data_stats.get("wspdavg_current")
+    )
+    wind_min = 0  # Ak nemá min, pre 9-stĺpcový formát
 
-  # Vietor
-  wind_max = (
-      data_stats.get("wspd_day_max")
-      or data_stats.get("wgust")
-      or data_stats.get("wspd_max")
-      or data_val.get("wspd")
-  )
-  wind_avg = (
-      data_val.get("wspdavg")
-      or data_val.get("wspd")
-      or data_stats.get("wspdavg_current")
-  )
+    # Zrážky
+    rain_total = (
+        data_stats.get("rain_day_total")
+        or data_stats.get("rain_day_max")
+        or data_val.get("rain")
+    )
 
-  # Zrážky a UV index
-  rain_total = (
-      data_stats.get("rain_day_total")
-      or data_stats.get("rain_day_max")
-      or data_val.get("rain")
-  )
-  uv_val = data_val.get("uvi")
+    # PRESNE 9 STĹPCOV PODĽA TVOJEJ EXCEL TABUĽKY:
+    row = [
+        datum_str,                            # 1. Dátum
+        cas_str,                              # 2. Čas
+        to_sk_num(temp_max),                  # 3. Teplota Max (°C)
+        to_sk_num(temp_avg),                  # 4. Teplota Priemer (°C)
+        to_sk_num(temp_min),                  # 5. Teplota Min (°C)
+        to_sk_num(wind_max, scale=MS_TO_KMH), # 6. Vietor Max (km/h)
+        to_sk_num(wind_avg, scale=MS_TO_KMH), # 7. Vietor Priemer (km/h)
+        to_sk_num(wind_min),                  # 8. Vietor Min (km/h)
+        to_sk_num(rain_total),                # 9. Zrážky (mm)
+    ]
 
-  row = [
-      datum_str,
-      cas_str,
-      to_sk_num(temp_max),
-      to_sk_num(temp_min),
-      to_sk_num(temp_avg),
-      to_sk_num(hum_avg),
-      to_sk_num(bar_avg),
-      to_sk_num(wind_max, scale=MS_TO_KMH),
-      to_sk_num(wind_avg, scale=MS_TO_KMH),
-      to_sk_num(rain_total),
-      to_sk_num(uv_val),
-  ]
+    file_exists = os.path.exists(CSV_FILE)
 
-  file_exists = os.path.exists(CSV_FILE)
+    with open(CSV_FILE, mode="a", newline="", encoding="utf-8-sig") as f:
+        writer = csv.writer(f, delimiter=";")
+        if not file_exists:
+            header = [
+                "Dátum",
+                "Čas",
+                "Teplota Max (°C)",
+                "Teplota Priemer (°C)",
+                "Teplota Min (°C)",
+                "Vietor Max (km/h)",
+                "Vietor Priemer (km/h)",
+                "Vietor Min (km/h)",
+                "Zrážky (mm)",
+            ]
+            writer.writerow(header)
+        writer.writerow(row)
 
-  with open(CSV_FILE, mode="a", newline="", encoding="utf-8-sig") as f:
-    writer = csv.writer(f, delimiter=";")
-    if not file_exists:
-      header = [
-          "Dátum",
-          "Čas",
-          "Teplota Max (°C)",
-          "Teplota Min (°C)",
-          "Teplota Akt/Avg (°C)",
-          "Vlhkosť (%)",
-          "Tlak (hPa)",
-          "Vietor Max (km/h)",
-          "Vietor Avg (km/h)",
-          "Zrážky (mm)",
-          "UV index",
-      ]
-      writer.writerow(header)
-    writer.writerow(row)
-
-  print(f"✅ Denný zber úspešne uložený do {CSV_FILE}")
-
-
-if __name__ == "__main__":
-  main()
+    print(f"✅ Denný zber úspešne uložený do {CSV_FILE}")
