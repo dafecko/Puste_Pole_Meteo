@@ -729,17 +729,49 @@ with tab_aktualne:
 
     st.markdown("---")
 
-    # --- HORIZONTÁLNE SCROLOVATEĽNÁ PREDPOVEĎ PO HODINÁCH (24 HODÍN) ---
-    st.subheader("⏱️ Podrobná predpoveď po hodinách (najbližších 24h)")
+   # --- HORIZONTÁLNE SCROMOVATEĽNÁ PREDPOVEĎ PO HODINÁCH (24 HODÍN) ---
+st.subheader("⏱️ Podrobná predpoveď po hodinách (najbližších 24h)")
 
-    if hourly_api_data and "time" in hourly_api_data:
-        df_hourly = pd.DataFrame(hourly_api_data)
-        df_hourly["time"] = pd.to_datetime(df_hourly["time"])
+if hourly_api_data and "time" in hourly_api_data:
+    df_hourly = pd.DataFrame(hourly_api_data)
+    df_hourly["time"] = pd.to_datetime(df_hourly["time"])
 
-        now = datetime.datetime.now()
-        df_next_24h = df_hourly[
-            (df_hourly["time"] >= now) & (df_hourly["time"] <= now + datetime.timedelta(hours=24))
-        ].copy()
+    # Získame aktuálny čas zaokrúhlený na celú hodinu (ignorujeme minúty/sekundy)
+    now = pd.Timestamp.now().replace(minute=0, second=0, microsecond=0)
+
+    df_next_24h = df_hourly[
+        (df_hourly["time"] >= now)
+        & (df_hourly["time"] <= now + pd.Timedelta(hours=23))
+    ].copy()
+
+    if not df_next_24h.empty:
+        # Vytvorenie horizontálneho pásu s 24 mini-kartami (v jednom riadku bez multiline zátvoriek)
+        cards_html = '<div class="scroll-container">'
+
+        for _, row in df_next_24h.iterrows():
+            h_time = row["time"]
+            h_temp = row.get("temperature_2m", 0.0)
+            h_code = row.get("weather_code", 0)
+            h_prob = row.get("precipitation_probability", 0)
+            h_icon = get_weather_icon(h_code)
+
+            time_str = h_time.strftime("%H:%M")
+
+            cards_html += (
+                f'<div class="mini-hourly-card">'
+                f'<div style="font-size: 0.75em; font-weight: 700; opacity: 0.75;">{time_str}</div>'
+                f'<div style="font-size: 1.4em; margin: 3px 0;">{h_icon}</div>'
+                f'<div style="font-size: 1.05em; font-weight: 800;">{h_temp:.1f}°C</div>'
+                f'<div style="font-size: 0.7em; opacity: 0.75; margin-top: 3px;">💧 {h_prob}%</div>'
+                f"</div>"
+            )
+
+        cards_html += "</div>"
+        st.markdown(cards_html, unsafe_allow_html=True)
+    else:
+        st.info("Žiadne dáta pre najbližších 24 hodín.")
+else:
+    st.info("Podrobné hodinové dáta predpovede nie sú dostupné.")
 
         if not df_next_24h.empty:
             # Vytvorenie horizontálneho pásu s 24 mini-kartami (v jednom riadku bez multiline zátvoriek)
