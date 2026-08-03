@@ -736,13 +736,9 @@ with tab_aktualne:
         df_hourly = pd.DataFrame(hourly_api_data)
         df_hourly["time"] = pd.to_datetime(df_hourly["time"])
 
-        now = datetime.datetime.now().replace(
-        minute=0, second=0, microsecond=0
-    )  # Toto orezá minúty na celú hodinu
-    df_next_24h = df_hourly[
-        (df_hourly["time"] >= now)
-        & (df_hourly["time"] <= now + datetime.timedelta(hours=23))
-    ].copy()
+        now = datetime.datetime.now()
+        df_next_24h = df_hourly[
+            (df_hourly["time"] >= now) & (df_hourly["time"] <= now + datetime.timedelta(hours=24))
         ].copy()
 
         if not df_next_24h.empty:
@@ -770,7 +766,7 @@ with tab_aktualne:
             cards_html += '</div>'
             st.markdown(cards_html, unsafe_allow_html=True)
 
-          
+           
     else:
         st.info("Podrobné hodinové dáta predpovede nie sú dostupné.")
 
