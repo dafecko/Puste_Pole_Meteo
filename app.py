@@ -300,7 +300,8 @@ def deg_to_cardinal(deg):
         return "Severo-severozápad"
     return "Sever"
 
-@st.cache_data
+# TU JE OPRAVA (ttl=600), KTORÁ ZABEZPEČÍ OBNOVU DÁT MAX PO 10 MINÚTACH
+@st.cache_data(ttl=600)
 def load_data():
     if not os.path.exists(CSV_FILE):
         return None
