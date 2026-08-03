@@ -736,7 +736,7 @@ with tab_aktualne:
         df_hourly = pd.DataFrame(hourly_api_data)
         df_hourly["time"] = pd.to_datetime(df_hourly["time"])
 
-        now = datetime.datetime.now().replace(minute=0, second=0, microsecond=0)
+        now = (datetime.datetime.utcnow() + datetime.timedelta(hours=2)).replace(minute=0, second=0, microsecond=0)
         df_next_24h = df_hourly[
             (df_hourly["time"] >= now) & (df_hourly["time"] <= now + datetime.timedelta(hours=24))
         ].copy()
