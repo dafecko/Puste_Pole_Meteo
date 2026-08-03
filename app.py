@@ -755,18 +755,7 @@ with tab_aktualne:
                 time_str = h_time.strftime("%H:%M")
             date_str = h_time.strftime("%d.%m.")
 
-            cards_html += (
-                f'<div class="mini-hourly-card">'
-                f'<div style="font-size: 0.75em; font-weight: 700; opacity:'
-                f' 0.75;">{time_str}</div>'
-                f'<div style="font-size: 0.6em; font-weight: 600; opacity: 0.5;'
-                f' margin-bottom: 2px;">{date_str}</div>'
-                f'<div style="font-size: 1.4em; margin: 2px 0;">{h_icon}</div>'
-                f'<div style="font-size: 1.05em; font-weight: 800;">{h_temp:.1f}°C</div>'
-                f'<div style="font-size: 0.7em; opacity: 0.75; margin-top: 3px;">💧'
-                f" {h_prob}%</div>"
-                f"</div>"
-            )
+            cards_html += f'<div class="mini-hourly-card"><div style="font-size: 0.75em; font-weight: 700; opacity: 0.75;">{time_str}</div><div style="font-size: 0.6em; font-weight: 600; opacity: 0.5; margin-bottom: 2px;">{date_str}</div><div style="font-size: 1.4em; margin: 2px 0;">{h_icon}</div><div style="font-size: 1.05em; font-weight: 800;">{h_temp:.1f}°C</div><div style="font-size: 0.7em; opacity: 0.75; margin-top: 3px;">💧 {h_prob}%</div></div>'
             
             cards_html += '</div>'
             st.markdown(cards_html, unsafe_allow_html=True)
