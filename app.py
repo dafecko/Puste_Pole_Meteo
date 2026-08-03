@@ -44,14 +44,38 @@ st.markdown(
         transform: translateY(-3px);
         box-shadow: 0 8px 20px rgba(0,0,0,0.1);
     }
-    .hourly-card {
-        background-color: var(--secondary-background-color);
-        border: 1px solid rgba(150, 150, 150, 0.15);
-        border-radius: 12px;
-        padding: 12px;
-        text-align: center;
-        margin-bottom: 10px;
+    
+    /* Horizontálny scrolovateľný kontajner pre 24h predpoveď */
+    .scroll-container {
+        display: flex;
+        overflow-x: auto;
+        gap: 12px;
+        padding: 10px 5px 15px 5px;
+        scroll-behavior: smooth;
     }
+    .scroll-container::-webkit-scrollbar {
+        height: 6px;
+    }
+    .scroll-container::-webkit-scrollbar-thumb {
+        background: rgba(150, 150, 150, 0.4);
+        border-radius: 10px;
+    }
+    .mini-hourly-card {
+        min-width: 85px;
+        max-width: 85px;
+        background-color: var(--secondary-background-color);
+        border: 1px solid rgba(150, 150, 150, 0.18);
+        border-radius: 12px;
+        padding: 10px 6px;
+        text-align: center;
+        flex-shrink: 0;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        transition: transform 0.2s ease;
+    }
+    .mini-hourly-card:hover {
+        transform: translateY(-2px);
+    }
+
     .card-title {
         font-size: 0.95em;
         font-weight: 700;
@@ -82,7 +106,7 @@ st.markdown(
         font-weight: 500;
     }
     
-    /* Štýly pre vertikálne stupnice */
+    /* Vertikálne stupnice */
     .bar-container {
         display: flex;
         align-items: center;
@@ -124,7 +148,7 @@ st.markdown(
         transition: height 0.5s ease;
     }
 
-    /* Štýly pre kruhové ciferníky */
+    /* Kruhové ciferníky */
     .gauge-circle {
         width: 110px;
         height: 110px;
@@ -705,50 +729,44 @@ with tab_aktualne:
 
     st.markdown("---")
 
-    # --- PODROBNÁ PREDPOVEĎ NA NAJBLIŽŠÍCH 24 HODÍN ---
-    st.subheader("⏱️ Podrobná predpoveď na najbližších 24 hodín")
+    # --- HORIZONTÁLNE SCROLOVATEĽNÁ PREDPOVEĎ PO HODINÁCH (24 HODÍN) ---
+    st.subheader("⏱️ Podrobná predpoveď po hodinách (najbližších 24h)")
 
     if hourly_api_data and "time" in hourly_api_data:
         df_hourly = pd.DataFrame(hourly_api_data)
         df_hourly["time"] = pd.to_datetime(df_hourly["time"])
 
-        # Kĺzavých 24 hodín od aktuálneho času
         now = datetime.datetime.now()
         df_next_24h = df_hourly[
             (df_hourly["time"] >= now) & (df_hourly["time"] <= now + datetime.timedelta(hours=24))
         ].copy()
 
         if not df_next_24h.empty:
-            # Výber 4 kľúčových bodov v 6-hodinových intervaloch od aktuálneho času
-            sample_points = df_next_24h.iloc[::6].head(4)
-            hcols = st.columns(len(sample_points))
-
-            for idx, (_, row) in enumerate(sample_points.iterrows()):
+            # Vytvorenie horizontálneho pásu s 24 mini-kartami
+            cards_html = '<div class="scroll-container">'
+            
+            for _, row in df_next_24h.iterrows():
                 h_time = row["time"]
                 h_temp = row.get("temperature_2m", 0.0)
                 h_code = row.get("weather_code", 0)
                 h_prob = row.get("precipitation_probability", 0)
                 h_icon = get_weather_icon(h_code)
 
-                # Formátovanie času a dňa (napr. Dnes 14:00, Zajtra 08:00)
-                is_today = h_time.date() == now.date()
-                day_label = "Dnes" if is_today else "Zajtra"
-                time_label = f"{day_label} {h_time.strftime('%H:%M')}"
+                time_str = h_time.strftime("%H:%M")
 
-                with hcols[idx]:
-                    st.markdown(
-                        f"""
-                        <div class="hourly-card">
-                            <div style="font-size: 0.85em; font-weight: 700; opacity: 0.8;">{time_label}</div>
-                            <div style="font-size: 1.8em; margin: 4px 0;">{h_icon}</div>
-                            <div style="font-size: 1.2em; font-weight: 800;">{h_temp:.1f} °C</div>
-                            <div style="font-size: 0.78em; opacity: 0.75; margin-top: 2px;">💧 zrážky {h_prob}%</div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
+                cards_html += f"""
+                <div class="mini-hourly-card">
+                    <div style="font-size: 0.75em; font-weight: 700; opacity: 0.75;">{time_str}</div>
+                    <div style="font-size: 1.4em; margin: 3px 0;">{h_icon}</div>
+                    <div style="font-size: 1.05em; font-weight: 800;">{h_temp:.1f}°C</div>
+                    <div style="font-size: 0.7em; opacity: 0.75; margin-top: 3px;">💧 {h_prob}%</div>
+                </div>
+                """
+            
+            cards_html += '</div>'
+            st.markdown(cards_html, unsafe_allow_html=True)
 
-            # Graf hodinového priebehu na 24 hodín
+            # Graf hodinového priebehu pod kartičkami
             fig_24h = go.Figure()
             fig_24h.add_trace(
                 go.Scatter(
@@ -771,7 +789,7 @@ with tab_aktualne:
             )
 
             fig_24h.update_layout(
-                height=260,
+                height=240,
                 margin=dict(l=10, r=10, t=30, b=10),
                 hovermode="x unified",
                 legend=dict(
