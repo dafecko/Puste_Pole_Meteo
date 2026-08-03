@@ -287,8 +287,10 @@ def deg_to_cardinal(deg):
     elif 191.25 <= d < 213.75:
         return "Juho-juhozápad"
     elif 213.75 <= d < 236.25:
-        return "Západno-juhozápad"
+        return "Juhozápad"
     elif 236.25 <= d < 258.75:
+        return "Západno-juhozápad"
+    elif 258.75 <= d < 281.25:
         return "Západ"
     elif 281.25 <= d < 303.75:
         return "Západno-severozápad"
@@ -511,7 +513,7 @@ if p_val == 0.0 and h_val == 0.0:
         h_val = current_api_data.get("relative_humidity_2m", 50.0)
         w_val = current_api_data.get("wind_speed_10m", 0.0)
         r_val = current_api_data.get("precipitation", 0.0)
-        p_val = 1013.0  # Bezpečný predvolený tlak
+        p_val = 1013.0
         uv_val = 0.0
         chill_val = t_val
         heat_val = t_val
@@ -550,7 +552,6 @@ with tab_aktualne:
             "icon": "📡",
         })
 
-    # Mrazový poplach sa ukáže len ak to nie je fallback s nulou, aby nebol falošný
     if t_val <= 3.0 and not (is_fallback and t_val == 0.0):
         active_warnings.append({
             "title": "Pozor: Hrozí prízemný mráz!",
@@ -761,14 +762,22 @@ with tab_aktualne:
                 h_temp = row.get("temperature_2m", 0.0)
                 h_code = row.get("weather_code", 0)
                 h_prob = row.get("precipitation_probability", 0)
+                h_precip = row.get("precipitation", 0.0)
                 h_icon = get_weather_icon(h_code)
 
                 # Príprava času a dátumu
                 time_str = h_time.strftime("%H:%M")
                 date_str = h_time.strftime("%d.%m.")
 
-                # HTML karta v jednom neprerušenom riadku (bezpečné proti chybám odsadenia v Pythone)
-                cards_html += f'<div class="mini-hourly-card"><div style="font-size: 0.75em; font-weight: 700; opacity: 0.75;">{time_str}</div><div style="font-size: 0.6em; font-weight: 600; opacity: 0.5; margin-bottom: 2px;">{date_str}</div><div style="font-size: 1.4em; margin: 2px 0;">{h_icon}</div><div style="font-size: 1.05em; font-weight: 800;">{h_temp:.1f}°C</div><div style="font-size: 0.7em; opacity: 0.75; margin-top: 3px;">💧 {h_prob}%</div></div>'
+                # Zobrazenie úhrnu zrážok v mm, ak sú väčšie ako 0
+                precip_html = (
+                    f'<div style="font-size: 0.65em; color: #3498db; font-weight: 700; margin-top: 1px;">{h_precip:.1f} mm</div>'
+                    if h_precip > 0
+                    else '<div style="font-size: 0.65em; opacity: 0; margin-top: 1px;">0 mm</div>'
+                )
+
+                # HTML karta v jednom neprerušenom riadku
+                cards_html += f'<div class="mini-hourly-card"><div style="font-size: 0.75em; font-weight: 700; opacity: 0.75;">{time_str}</div><div style="font-size: 0.6em; font-weight: 600; opacity: 0.5; margin-bottom: 2px;">{date_str}</div><div style="font-size: 1.4em; margin: 2px 0;">{h_icon}</div><div style="font-size: 1.05em; font-weight: 800;">{h_temp:.1f}°C</div><div style="font-size: 0.7em; opacity: 0.75; margin-top: 3px;">💧 {h_prob}%</div>{precip_html}</div>'
             
             cards_html += '</div>'
             st.markdown(cards_html, unsafe_allow_html=True)
