@@ -730,16 +730,18 @@ with tab_aktualne:
     st.markdown("---")
 
     # --- HORIZONTÁLNE SCROLOVATEĽNÁ PREDPOVEĎ PO HODINÁCH (24 HODÍN) ---
-    st.subheader("⏱️ Podrobná predpoveď po hodinách (najbližších 24h)")
+st.subheader("⏱️ Podrobná predpoveď po hodinách (najbližších 24h)")
 
-    if hourly_api_data and "time" in hourly_api_data:
-        df_hourly = pd.DataFrame(hourly_api_data)
-        df_hourly["time"] = pd.to_datetime(df_hourly["time"])
+if hourly_api_data and "time" in hourly_api_data:
+    df_hourly = pd.DataFrame(hourly_api_data)
+    df_hourly["time"] = pd.to_datetime(df_hourly["time"])
 
-        now = datetime.datetime.now()
-        df_next_24h = df_hourly[
-            (df_hourly["time"] >= now) & (df_hourly["time"] <= now + datetime.timedelta(hours=24))
-        ].copy()
+    now = pd.Timestamp.now().replace(minute=0, second=0, microsecond=0)
+
+    df_next_24h = df_hourly[
+        (df_hourly["time"] >= now)
+        & (df_hourly["time"] <= now + pd.Timedelta(hours=23))
+    ].copy()
 
         if not df_next_24h.empty:
             # Vytvorenie horizontálneho pásu s 24 mini-kartami (v jednom riadku bez multiline zátvoriek)
