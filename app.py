@@ -287,10 +287,8 @@ def deg_to_cardinal(deg):
     elif 191.25 <= d < 213.75:
         return "Juho-juhozápad"
     elif 213.75 <= d < 236.25:
-        return "Juhozápad"
-    elif 236.25 <= d < 258.75:
         return "Západno-juhozápad"
-    elif 258.75 <= d < 281.25:
+    elif 236.25 <= d < 258.75:
         return "Západ"
     elif 281.25 <= d < 303.75:
         return "Západno-severozápad"
@@ -339,8 +337,9 @@ def load_data():
             )
     return df
 
+# PREMENOVANÁ FUNKCIA na prelomenie vyrovnávacej pamäte
 @st.cache_data(ttl=1800)
-def get_weather_data(lat, lon):
+def fetch_weather_api_data(lat, lon):
     url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode,sunrise,sunset&forecast_days=7&timezone=Europe/Bratislava"
     try:
         response = requests.get(url)
@@ -433,7 +432,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-current_api_data, forecast_data, hourly_api_data = get_weather_data(LAT, LON)
+current_api_data, forecast_data, hourly_api_data = fetch_weather_api_data(LAT, LON)
 curr_code = (
     current_api_data.get("weather_code", 0) if current_api_data else 0
 )
@@ -747,7 +746,6 @@ with tab_aktualne:
         df_hourly = pd.DataFrame(hourly_api_data)
         df_hourly["time"] = pd.to_datetime(df_hourly["time"])
 
-        # Získame aktuálny čas s posunom +2 hodiny voči UTC (pre náš letný čas) a orezaný na celú hodinu
         now = (datetime.datetime.utcnow() + datetime.timedelta(hours=2)).replace(minute=0, second=0, microsecond=0)
         
         df_next_24h = df_hourly[
@@ -762,22 +760,25 @@ with tab_aktualne:
                 h_temp = row.get("temperature_2m", 0.0)
                 h_code = row.get("weather_code", 0)
                 h_prob = row.get("precipitation_probability", 0)
-                h_precip = row.get("precipitation", 0.0)
+                
+                # Bezpečné vytiahnutie zrážok
+                try:
+                    h_precip = float(row.get("precipitation", 0.0))
+                except:
+                    h_precip = 0.0
+                    
                 h_icon = get_weather_icon(h_code)
 
-                # Príprava času a dátumu
                 time_str = h_time.strftime("%H:%M")
                 date_str = h_time.strftime("%d.%m.")
 
-                # Zobrazenie úhrnu zrážok v mm, ak sú väčšie ako 0
-                precip_html = (
-                    f'<div style="font-size: 0.65em; color: #3498db; font-weight: 700; margin-top: 1px;">{h_precip:.1f} mm</div>'
-                    if h_precip > 0
-                    else '<div style="font-size: 0.65em; opacity: 0; margin-top: 1px;">0 mm</div>'
-                )
+                # Odlíšenie štýlu: modrá + tučné písmo, ak zrážky > 0, inak jemná farba pre 0.0 mm
+                if h_precip > 0:
+                    precip_style = "color: #3498db; font-weight: 800; opacity: 1.0;"
+                else:
+                    precip_style = "color: inherit; font-weight: 500; opacity: 0.4;"
 
-                # HTML karta v jednom neprerušenom riadku
-                cards_html += f'<div class="mini-hourly-card"><div style="font-size: 0.75em; font-weight: 700; opacity: 0.75;">{time_str}</div><div style="font-size: 0.6em; font-weight: 600; opacity: 0.5; margin-bottom: 2px;">{date_str}</div><div style="font-size: 1.4em; margin: 2px 0;">{h_icon}</div><div style="font-size: 1.05em; font-weight: 800;">{h_temp:.1f}°C</div><div style="font-size: 0.7em; opacity: 0.75; margin-top: 3px;">💧 {h_prob}%</div>{precip_html}</div>'
+                cards_html += f'<div class="mini-hourly-card"><div style="font-size: 0.75em; font-weight: 700; opacity: 0.75;">{time_str}</div><div style="font-size: 0.6em; font-weight: 600; opacity: 0.5; margin-bottom: 2px;">{date_str}</div><div style="font-size: 1.4em; margin: 2px 0;">{h_icon}</div><div style="font-size: 1.05em; font-weight: 800;">{h_temp:.1f}°C</div><div style="font-size: 0.7em; opacity: 0.75; margin-top: 3px;">💧 {h_prob}%</div><div style="font-size: 0.65em; {precip_style} margin-top: 1px;">{h_precip:.1f} mm</div></div>'
             
             cards_html += '</div>'
             st.markdown(cards_html, unsafe_allow_html=True)
