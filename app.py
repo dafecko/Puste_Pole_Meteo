@@ -729,7 +729,7 @@ with tab_aktualne:
 
     st.markdown("---")
 
-# --- HORIZONTÁLNE SCROLOVATEĽNÁ PREDPOVEĎ PO HODINÁCH (24 HODÍN) ---
+# --- HORIZONTÁLNE SCROLOVATEĽNá PREDPOVEĎ PO HODINÁCH (24 HODÍN) ---
 st.subheader("⏱️ Podrobná predpoveď po hodinách (najbližších 24h)")
 
 if hourly_api_data and "time" in hourly_api_data:
