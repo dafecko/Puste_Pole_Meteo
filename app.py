@@ -1,13 +1,15 @@
 import datetime
 import math
 import os
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import pandas as pd
 import requests
 import streamlit as st
 
-# --- KONFIGURÁCIA STRÁNKY ---
+# ==========================================
+# 1. KONFIGURÁCIA STRÁNKY A ŠTÝLY
+# ==========================================
 st.set_page_config(
     page_title="Meteo Stanica Pusté Pole",
     page_icon="🌤️",
@@ -15,22 +17,28 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# --- SÚBOR S DÁTAMI ---
+# Název súboru s dátami
 CSV_FILE = "puste_pole.csv"
 
-# --- OPEN-METEO SÚRADNICE PRE PUSTÉ POLE (cca 49.22°N, 20.90°E) ---
+# Súradnice pre Open-Meteo predpoveď
 LATITUDE = 49.22
 LONGITUDE = 20.90
 
 
-# --- CACHED NAČÍTANIE A SPRACOVANIE DÁT S BEZPEČNÝM FORMÁTOVANÍM DÁTUMOV ---
+# ==========================================
+# 2. CACHED NAČÍTANIE A SPRACOVANIE DÁT
+# ==========================================
 @st.cache_data(ttl=300)
 def load_data():
+    """
+    Načíta dáta z CSV súboru, automaticky deteguje oddeľovač (stredník/čiarka),
+    správne skonvertuje dátumy (aj vo formáte 1.7.2026) a očistí číselné stĺpce.
+    """
     if not os.path.exists(CSV_FILE):
         return None
 
     try:
-        # Skúška načítania s bodkočiarkou aj čiarkou
+        # Skúška načítania so stredníkom
         try:
             df = pd.read_csv(CSV_FILE, sep=";")
             if len(df.columns) <= 1:
@@ -39,20 +47,24 @@ def load_data():
             df = pd.read_csv(CSV_FILE, sep=",")
 
         # Nájdenie stĺpca s dátumom
-        date_col = next(
-            (c for c in df.columns if any(k in c.lower() for k in ["dátum", "datum", "date"])),
-            None,
-        )
+        date_col = None
+        for col in df.columns:
+            if any(
+                k in col.lower()
+                for k in ["dátum", "datum", "date", "čas", "cas", "time"]
+            ):
+                date_col = col
+                break
 
         if date_col:
-            # dayfirst=True zabezpečí správne čítanie formátov ako 1.7.2026 aj 01.07.2026
+            # dayfirst=True zabezpečí správnu interpretáciu dní na prvom mieste
             df["DateTime"] = pd.to_datetime(
                 df[date_col], dayfirst=True, errors="coerce"
             )
             df = df.dropna(subset=["DateTime"])
             df = df.sort_values("DateTime")
 
-        # Prevod číselných stĺpcov
+        # Konverzia číselných stĺpcov s desatinnou čiarkou
         for col in df.columns:
             if col not in [date_col, "DateTime"]:
                 if df[col].dtype == object:
@@ -65,22 +77,75 @@ def load_data():
                     df[col] = pd.to_numeric(df[col], errors="coerce")
 
         return df
+
     except Exception as e:
-        st.error(f"Chyba pri načítavaní CSV súboru: {e}")
+        st.error(f"Chyba pri spracovaní CSV súboru: {e}")
         return None
 
 
-# --- APLIKÁCIA CSS ŠTÝLOV ---
+# ==========================================
+# 3. VOLANIE EXTERNEJ PREDPOVEDE (OPEN-METEO)
+# ==========================================
+@st.cache_data(ttl=3600)
+def fetch_forecast():
+    """
+    Stiahne predpoveď počasia na 7 dní z API Open-Meteo.
+    """
+    try:
+        url = (
+            f"https://api.open-meteo.com/v1/forecast?"
+            f"latitude={LATITUDE}&longitude={LONGITUDE}&"
+            f"daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode,uv_index_max,windspeed_10m_max&"
+            f"timezone=Europe%2FBratislava"
+        )
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            return response.json().get("daily", {})
+    except Exception:
+        pass
+    return None
+
+
+def get_weather_icon(code):
+    """
+    Vráti emoji ikonu podľa WMO Weather Interpretation Codes.
+    """
+    if code in [0]:
+        return "☀️"
+    elif code in [1, 2]:
+        return "🌤️"
+    elif code in [3]:
+        return "☁️"
+    elif code in [45, 48]:
+        return "🌫️"
+    elif code in [51, 53, 55, 56, 57]:
+        return "🌦️"
+    elif code in [61, 63, 65, 66, 67]:
+        return "🌧️"
+    elif code in [71, 73, 75, 77]:
+        return "❄️"
+    elif code in [80, 81, 82]:
+        return "🌧️"
+    elif code in [85, 86]:
+        return "🌨️"
+    elif code in [95, 96, 99]:
+        return "⛈️"
+    return "🌡️"
+
+
+# ==========================================
+# 4. APLIKÁCIA CSS ŠTÝLOV A VZHĽADU
+# ==========================================
 st.markdown(
     """
     <style>
-    /* Hlavný kontajner */
+    /* Hlavný kontajner a odsadenie */
     .block-container {
         padding-top: 1rem;
         padding-bottom: 1rem;
     }
     
-    /* Vlastné kartičky / bannery */
+    /* Vlastné meteo kartičky */
     .weather-card {
         background-color: #f8f9fa;
         border-radius: 10px;
@@ -96,7 +161,7 @@ st.markdown(
         margin-bottom: 5px;
     }
 
-    /* CSS Kruhové Budíky / Gauge Icons */
+    /* CSS Kruhové Budíky / Gauges */
     .gauge-wrapper {
         display: flex;
         flex-direction: column;
@@ -120,10 +185,24 @@ st.markdown(
         box-sizing: border-box;
     }
     .gauge-wind {
-        background: conic-gradient(from 270deg at 50% 50%, #2ecc71 0deg 90deg, #f1c40f 90deg 144deg, #e67e22 144deg 162deg, #e74c3c 162deg 180deg, transparent 180deg);
+        background: conic-gradient(
+            from 270deg at 50% 50%,
+            #2ecc71 0deg 90deg,
+            #f1c40f 90deg 144deg,
+            #e67e22 144deg 162deg,
+            #e74c3c 162deg 180deg,
+            transparent 180deg
+        );
     }
     .gauge-uv {
-        background: conic-gradient(from 270deg at 50% 50%, #2ecc71 0deg 45deg, #f1c40f 45deg 105deg, #e67e22 105deg 150deg, #e74c3c 150deg 180deg, transparent 180deg);
+        background: conic-gradient(
+            from 270deg at 50% 50%,
+            #2ecc71 0deg 45deg,
+            #f1c40f 45deg 105deg,
+            #e67e22 105deg 150deg,
+            #e74c3c 150deg 180deg,
+            transparent 180deg
+        );
     }
     .gauge-inner-cover {
         position: absolute;
@@ -239,55 +318,16 @@ st.markdown(
 )
 
 
-# --- POMOCNÉ FUNKCIE PRE PREDPOVEĎ A WEATHER CODES ---
-@st.cache_data(ttl=3600)
-def fetch_forecast():
-    try:
-        url = f"https://api.open-meteo.com/v1/forecast?latitude={LATITUDE}&longitude={LONGITUDE}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode,uv_index_max,windspeed_10m_max&timezone=Europe%2FBratislava"
-        r = requests.get(url, timeout=5)
-        if r.status_code == 200:
-            return r.json().get("daily", {})
-    except Exception:
-        pass
-    return None
-
-
-def get_weather_icon(code):
-    # WMO Weather interpretation codes
-    if code in [0]:
-        return "☀️"  # Jasno
-    elif code in [1, 2]:
-        return "🌤️"  # Prevažne jasno
-    elif code in [3]:
-        return "☁️"  # Zamračené
-    elif code in [45, 48]:
-        return "🌫️"  # Hmla
-    elif code in [51, 53, 55, 56, 57]:
-        return "🌦️"  # Mrholenie
-    elif code in [61, 63, 65, 66, 67]:
-        return "🌧️"  # Dážď
-    elif code in [71, 73, 75, 77]:
-        return "❄️"  # Sneženie
-    elif code in [80, 81, 82]:
-        return "🌧️"  # Prehánky
-    elif code in [85, 86]:
-        return "🌨️"  # Snehové prehánky
-    elif code in [95, 96, 99]:
-        return "⛈️"  # Búrka
-    return "🌡️"
-
-
-# --- HLAVNÝ NÁZOV ---
+# ==========================================
+# 5. HLAVNÁ APLIKÁCIA A STRUČNÝ PREHĽAD
+# ==========================================
 st.title("🌤️ Meteostanica Pusté Pole")
 
-# Záložky aplikácie
 tab_aktualne, tab_historia = st.tabs(["📊 Aktuálny prehľad", "📜 História a Štatistiky"])
 
-# Načítanie dát pre predpoveď
 forecast_data = fetch_forecast()
 
 with tab_aktualne:
-    # Získanie najnovšieho záznamu z CSV
     df_raw = load_data()
 
     if df_raw is not None and not df_raw.empty:
@@ -301,20 +341,20 @@ with tab_aktualne:
         latest = None
         last_time = "Žiadne dáta"
 
-    # Predpoveď na dnes (z Open-Meteo)
+    # Dnešné hodnoty z API
     t_max_today = forecast_data["temperature_2m_max"][0] if forecast_data else 20.0
     t_min_today = forecast_data["temperature_2m_min"][0] if forecast_data else 10.0
     wind_max_today = forecast_data["windspeed_10m_max"][0] if forecast_data else 15.0
     uv_today = forecast_data["uv_index_max"][0] if forecast_data else 3.0
     rain_today = forecast_data["precipitation_sum"][0] if forecast_data else 0.0
 
-    # Hodnoty pre zobrazenie
+    # Získanie hodnôt z CSV alebo predpovede
     t_val = latest["Teplota"] if (latest is not None and "Teplota" in latest) else t_max_today
     w_val = latest["Max Vietor"] if (latest is not None and "Max Vietor" in latest) else wind_max_today
     r_val = latest["Zrážky"] if (latest is not None and "Zrážky" in latest) else rain_today
     uv_val = uv_today
 
-    # --- VÝSTRAŽNÝ BANNER ---
+    # Výstrahy
     alerts = []
     if w_val >= 60:
         alerts.append(("danger", f"⚠️ <b>VÝSTRAHA PRED SILNÝM VETROM:</b> Nárazy vetra dosahujú až {w_val:.1f} km/h!"))
@@ -335,10 +375,9 @@ with tab_aktualne:
 
     st.caption(f"Posledná aktualizácia stanice: **{last_time}**")
 
-    # Uhol ručičky pre vietor (0 - 100 km/h -> -90° až 90°)
+    # Výpočet uhlov pre CSS ručičky budíkov
     w_angle = min(max((w_val / 100.0) * 180.0 - 90.0, -90.0), 90.0)
 
-    # Popis vetra
     if w_val < 10:
         w_desc = "Slabý vietor"
     elif w_val < 30:
@@ -348,7 +387,6 @@ with tab_aktualne:
     else:
         w_desc = "Víchrica"
 
-    # Uhol ručičky pre UV Index (0 - 12 -> -90° až 90°)
     uv_angle = min(max((uv_val / 12.0) * 180.0 - 90.0, -90.0), 90.0)
 
     if uv_val <= 2:
@@ -362,11 +400,10 @@ with tab_aktualne:
     else:
         uv_desc = "Extrémne UV"
 
-    # Teplomer výška %
     t_min_scale, t_max_scale = -20.0, 40.0
     t_perc = min(max((t_val - t_min_scale) / (t_max_scale - t_min_scale) * 100.0, 5.0), 100.0)
 
-    # --- ZOBRAZENIE BUĎÍKOV A TEPLOMERA ---
+    # Vykreslenie budíkov
     col1, col2, col3 = st.columns(3)
 
     with col1:
@@ -444,7 +481,7 @@ with tab_aktualne:
 
     st.markdown("---")
 
-    # --- PREDPOVEĎ POČASIA ---
+    # Predpoveď počasia
     st.subheader("🔮 Predpoveď počasia na najbližšie dni")
     if forecast_data:
         days = forecast_data["time"]
@@ -486,6 +523,10 @@ with tab_aktualne:
                     unsafe_allow_html=True,
                 )
 
+
+# ==========================================
+# 6. HISTÓRIA, ŠTATISTIKY A FILTROVANIE
+# ==========================================
 with tab_historia:
     df = load_data()
 
@@ -520,11 +561,13 @@ with tab_historia:
                 (df["DateTime"].dt.date >= prev_datum_od)
                 & (df["DateTime"].dt.date <= prev_datum_do)
             ]
+
         elif "2" in volba:
             dostupne_roky = sorted(df["DateTime"].dt.year.unique())
             vybrany_rok = st.sidebar.selectbox("Vyberte rok", dostupne_roky)
             df_filtered = df_filtered[df_filtered["DateTime"].dt.year == vybrany_rok]
             df_prev = df[df["DateTime"].dt.year == vybrany_rok - 1]
+
         elif "3" in volba:
             dostupne_roky = sorted(df["DateTime"].dt.year.unique())
             vybrany_rok = st.sidebar.selectbox("Vyberte rok", dostupne_roky)
@@ -556,6 +599,7 @@ with tab_historia:
                 (df["DateTime"].dt.year == prev_year)
                 & (df["DateTime"].dt.month == prev_month)
             ]
+
         elif "4" in volba:
             datum_od = st.sidebar.date_input("Dátum od", min_d)
             datum_do = st.sidebar.date_input("Dátum do", max_d)
@@ -571,6 +615,7 @@ with tab_historia:
                 & (df["DateTime"].dt.date <= prev_datum_do)
             ]
 
+        # Detekcia stĺpcov podľa kľúčových slov
         t_max_col = next(
             (c for c in df.columns if "tepl" in c.lower() and "max" in c.lower()),
             None,
@@ -620,7 +665,9 @@ with tab_historia:
             None,
         )
 
-        # --- 1. ABSOLÚTNE REKORDY STANICE ---
+        # ------------------------------------------
+        # 6.1 ABSOLÚTNE REKORDY STANICE
+        # ------------------------------------------
         st.subheader("🏆 Absolútne rekordy stanice (od 1. 7. 2026)")
         if t_max_col and t_min_col and w_max_col and r_col:
             abs_max_t_row = df.loc[df[t_max_col].idxmax()]
@@ -666,13 +713,13 @@ with tab_historia:
                 ),
             )
         else:
-            st.info(
-                "Niektoré stĺpce pre absolútne rekordy neboli v CSV súbore nájdené."
-            )
+            st.info("Niektoré stĺpce pre absolútne rekordy neboli v CSV súbore nájdené.")
 
         st.markdown("---")
 
-        # --- 2. ŠTATISTIKY A EXTRÉMY ZA VYBRANÉ OBDOBIE ---
+        # ------------------------------------------
+        # 6.2 ŠTATISTIKY ZA VYBRANÉ OBDOBIE
+        # ------------------------------------------
         st.subheader("📊 Štatistiky a vývoj za vybrané obdobie")
 
         if not df_filtered.empty:
@@ -755,20 +802,19 @@ with tab_historia:
             col1, col2, col3, col4 = st.columns(4)
             col1.metric("📈 Max Teplota", f"{max_temp:.1f} °C", delta=delta_max_t)
             col2.metric("📉 Min Teplota", f"{min_temp:.1f} °C", delta=delta_min_t)
-            col3.metric(
-                "🌡️ Priemerná Teplota", f"{avg_temp:.1f} °C", delta=delta_avg_t
-            )
+            col3.metric("🌡️ Priemerná Teplota", f"{avg_temp:.1f} °C", delta=delta_avg_t)
             col4.metric("💨 Max Vietor", f"{max_wind:.1f} km/h", delta=delta_wind)
 
             ecol1, ecol2, ecol3 = st.columns(3)
-            ecol1.metric(
-                "🌧️ Celkové Zrážky", f"{total_rain:.1f} mm", delta=delta_rain
-            )
+            ecol1.metric("🌧️ Celkové Zrážky", f"{total_rain:.1f} mm", delta=delta_rain)
             ecol2.metric("⛈️ Maximálne Zrážky", f"{max_rain:.1f} mm")
             ecol3.metric("📅 Počet záznamov", f"{len(df_filtered)}")
 
             st.markdown("---")
 
+            # ------------------------------------------
+            # 6.3 GRAFY A TABUĽKY
+            # ------------------------------------------
             view_mode = st.radio(
                 "Zvoliť spôsob zobrazenia údajov:",
                 ["📈 Grafy", "📋 Tabuľka"],
@@ -876,6 +922,7 @@ with tab_historia:
                             config=chart_config,
                         )
 
+                # Veterná ružica
                 if w_dir_col and w_speed_col:
                     st.markdown("---")
                     st.subheader("🧭 Veterná ružica (Rozloženie smerov vetra)")
