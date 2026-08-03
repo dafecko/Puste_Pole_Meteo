@@ -300,7 +300,6 @@ def deg_to_cardinal(deg):
         return "Severo-severozápad"
     return "Sever"
 
-# TU JE OPRAVA (ttl=600), KTORÁ ZABEZPEČÍ OBNOVU DÁT MAX PO 10 MINÚTACH
 @st.cache_data(ttl=600)
 def load_data():
     if not os.path.exists(CSV_FILE):
@@ -1064,6 +1063,7 @@ with tab_historia:
                                 y=df_filtered[t_max_col],
                                 name="Max Teplota",
                                 line=dict(color="#d9534f", width=2),
+                                hovertemplate="%{name}: <b>%{y:.1f} °C</b><extra></extra>"
                             )
                         )
                     if t_min_col:
@@ -1073,6 +1073,7 @@ with tab_historia:
                                 y=df_filtered[t_min_col],
                                 name="Min Teplota",
                                 line=dict(color="#337ab7", width=2),
+                                hovertemplate="%{name}: <b>%{y:.1f} °C</b><extra></extra>"
                             )
                         )
                     fig_temp.update_layout(title="🌡️ Vývoj teploty v čase", **layout_updates)
@@ -1091,6 +1092,7 @@ with tab_historia:
                                 y=df_filtered[r_col],
                                 name="Zrážky",
                                 marker_color="#3498db",
+                                hovertemplate="%{name}: <b>%{y:.1f} mm</b><extra></extra>"
                             )
                         )
                         fig_rain.update_layout(
@@ -1112,6 +1114,7 @@ with tab_historia:
                                 y=df_filtered[w_max_col],
                                 name="Max Rýchlosť vetra",
                                 line=dict(color="#f39c12", width=2),
+                                hovertemplate="%{name}: <b>%{y:.1f} km/h</b><extra></extra>"
                             )
                         )
                         fig_wind.update_layout(
@@ -1132,6 +1135,7 @@ with tab_historia:
                                 y=df_filtered[h_col],
                                 name="Vlhkosť",
                                 line=dict(color="#2ecc71", width=2),
+                                hovertemplate="%{name}: <b>%{y:.1f} %</b><extra></extra>"
                             )
                         )
                         fig_hum.update_layout(
