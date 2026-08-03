@@ -382,7 +382,7 @@ def get_moon_phase_info():
     elif phase < 0.53:
         return "🌕 Spln"
     elif phase < 0.72:
-        return "🌖 Couvajúci mesiac"
+        return "🌖 Cúvajúci mesiac"
     elif phase < 0.78:
         return "🌗 Posledná štvrť"
     else:
