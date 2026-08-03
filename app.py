@@ -753,6 +753,9 @@ with tab_aktualne:
                 h_icon = get_weather_icon(h_code)
 
                 time_str = h_time.strftime("%H:%M")
+                date_str = h_time.strftime(
+                "%-d.%-m."
+                )
 
                 cards_html += (
                     f'<div class="mini-hourly-card">'
