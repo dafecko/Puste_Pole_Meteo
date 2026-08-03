@@ -729,14 +729,13 @@ with tab_aktualne:
 
     st.markdown("---")
 
-   # --- HORIZONTÁLNE SCROMOVATEĽNÁ PREDPOVEĎ PO HODINÁCH (24 HODÍN) ---
+# --- HORIZONTÁLNE SCROLOVATEĽNÁ PREDPOVEĎ PO HODINÁCH (24 HODÍN) ---
 st.subheader("⏱️ Podrobná predpoveď po hodinách (najbližších 24h)")
 
 if hourly_api_data and "time" in hourly_api_data:
     df_hourly = pd.DataFrame(hourly_api_data)
     df_hourly["time"] = pd.to_datetime(df_hourly["time"])
 
-    # Získame aktuálny čas zaokrúhlený na celú hodinu (ignorujeme minúty/sekundy)
     now = pd.Timestamp.now().replace(minute=0, second=0, microsecond=0)
 
     df_next_24h = df_hourly[
@@ -745,7 +744,6 @@ if hourly_api_data and "time" in hourly_api_data:
     ].copy()
 
     if not df_next_24h.empty:
-        # Vytvorenie horizontálneho pásu s 24 mini-kartami (v jednom riadku bez multiline zátvoriek)
         cards_html = '<div class="scroll-container">'
 
         for _, row in df_next_24h.iterrows():
@@ -798,7 +796,54 @@ else:
             cards_html += '</div>'
             st.markdown(cards_html, unsafe_allow_html=True)
 
-          
+            # Graf hodinového priebehu pod kartičkami
+            fig_24h = go.Figure()
+            fig_24h.add_trace(
+                go.Scatter(
+                    x=df_next_24h["time"],
+                    y=df_next_24h["temperature_2m"],
+                    name="Teplota (°C)",
+                    line=dict(color="#e74c3c", width=3),
+                    yaxis="y1",
+                )
+            )
+            fig_24h.add_trace(
+                go.Bar(
+                    x=df_next_24h["time"],
+                    y=df_next_24h["precipitation"],
+                    name="Zrážky (mm)",
+                    marker_color="#3498db",
+                    opacity=0.5,
+                    yaxis="y2",
+                )
+            )
+
+            fig_24h.update_layout(
+                height=240,
+                margin=dict(l=10, r=10, t=30, b=10),
+                hovermode="x unified",
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="right",
+                    x=1,
+                ),
+                yaxis=dict(title="Teplota (°C)", side="left"),
+                yaxis2=dict(
+                    title="Zrážky (mm)",
+                    side="right",
+                    overlaying="y",
+                    showgrid=False,
+                ),
+                xaxis=dict(tickformat="%d.%m. %H:%M"),
+            )
+            st.plotly_chart(
+                fig_24h,
+                use_container_width=True,
+                theme="streamlit",
+                config={"displayModeBar": False},
+            )
     else:
         st.info("Podrobné hodinové dáta predpovede nie sú dostupné.")
 
