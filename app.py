@@ -337,7 +337,6 @@ def load_data():
             )
     return df
 
-# PREMENOVANÁ FUNKCIA na prelomenie vyrovnávacej pamäte
 @st.cache_data(ttl=1800)
 def fetch_weather_api_data(lat, lon):
     url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode,sunrise,sunset&forecast_days=7&timezone=Europe/Bratislava"
@@ -761,9 +760,8 @@ with tab_aktualne:
                 h_code = row.get("weather_code", 0)
                 h_prob = row.get("precipitation_probability", 0)
                 
-                # Bezpečné vytiahnutie zrážok
                 try:
-                    h_precip = float(row.get("precipitation", 0.0))
+                    h_precip = round(float(row.get("precipitation", 0.0)), 1)
                 except:
                     h_precip = 0.0
                     
@@ -772,13 +770,17 @@ with tab_aktualne:
                 time_str = h_time.strftime("%H:%M")
                 date_str = h_time.strftime("%d.%m.")
 
-                # Odlíšenie štýlu: modrá + tučné písmo, ak zrážky > 0, inak jemná farba pre 0.0 mm
+                # Odlíšenie štýlu: modrá + tučné písmo, ak zrážky > 0,
+                # ak je 0.0 ale pravdepodobnosť je vysoká, ukážeme < 0.1 mm
+                # inak to úplne skryjeme, aby to nerušilo vizuál pri slnečnom počasí
                 if h_precip > 0:
-                    precip_style = "color: #3498db; font-weight: 800; opacity: 1.0;"
+                    precip_html = f'<div style="font-size: 0.65em; color: #3498db; font-weight: 800; margin-top: 1px;">{h_precip:.1f} mm</div>'
+                elif h_prob >= 10:
+                    precip_html = f'<div style="font-size: 0.65em; color: #3498db; font-weight: 600; opacity: 0.7; margin-top: 1px;">&lt; 0.1 mm</div>'
                 else:
-                    precip_style = "color: inherit; font-weight: 500; opacity: 0.4;"
+                    precip_html = f'<div style="font-size: 0.65em; opacity: 0; margin-top: 1px;">0 mm</div>'
 
-                cards_html += f'<div class="mini-hourly-card"><div style="font-size: 0.75em; font-weight: 700; opacity: 0.75;">{time_str}</div><div style="font-size: 0.6em; font-weight: 600; opacity: 0.5; margin-bottom: 2px;">{date_str}</div><div style="font-size: 1.4em; margin: 2px 0;">{h_icon}</div><div style="font-size: 1.05em; font-weight: 800;">{h_temp:.1f}°C</div><div style="font-size: 0.7em; opacity: 0.75; margin-top: 3px;">💧 {h_prob}%</div><div style="font-size: 0.65em; {precip_style} margin-top: 1px;">{h_precip:.1f} mm</div></div>'
+                cards_html += f'<div class="mini-hourly-card"><div style="font-size: 0.75em; font-weight: 700; opacity: 0.75;">{time_str}</div><div style="font-size: 0.6em; font-weight: 600; opacity: 0.5; margin-bottom: 2px;">{date_str}</div><div style="font-size: 1.4em; margin: 2px 0;">{h_icon}</div><div style="font-size: 1.05em; font-weight: 800;">{h_temp:.1f}°C</div><div style="font-size: 0.7em; opacity: 0.75; margin-top: 3px;">💧 {h_prob}%</div>{precip_html}</div>'
             
             cards_html += '</div>'
             st.markdown(cards_html, unsafe_allow_html=True)
