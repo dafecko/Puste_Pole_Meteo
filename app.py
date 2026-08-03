@@ -766,54 +766,7 @@ with tab_aktualne:
             cards_html += '</div>'
             st.markdown(cards_html, unsafe_allow_html=True)
 
-            # Graf hodinového priebehu pod kartičkami
-            fig_24h = go.Figure()
-            fig_24h.add_trace(
-                go.Scatter(
-                    x=df_next_24h["time"],
-                    y=df_next_24h["temperature_2m"],
-                    name="Teplota (°C)",
-                    line=dict(color="#e74c3c", width=3),
-                    yaxis="y1",
-                )
-            )
-            fig_24h.add_trace(
-                go.Bar(
-                    x=df_next_24h["time"],
-                    y=df_next_24h["precipitation"],
-                    name="Zrážky (mm)",
-                    marker_color="#3498db",
-                    opacity=0.5,
-                    yaxis="y2",
-                )
-            )
-
-            fig_24h.update_layout(
-                height=240,
-                margin=dict(l=10, r=10, t=30, b=10),
-                hovermode="x unified",
-                legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=1.02,
-                    xanchor="right",
-                    x=1,
-                ),
-                yaxis=dict(title="Teplota (°C)", side="left"),
-                yaxis2=dict(
-                    title="Zrážky (mm)",
-                    side="right",
-                    overlaying="y",
-                    showgrid=False,
-                ),
-                xaxis=dict(tickformat="%d.%m. %H:%M"),
-            )
-            st.plotly_chart(
-                fig_24h,
-                use_container_width=True,
-                theme="streamlit",
-                config={"displayModeBar": False},
-            )
+            
     else:
         st.info("Podrobné hodinové dáta predpovede nie sú dostupné.")
 
