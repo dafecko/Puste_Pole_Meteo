@@ -743,29 +743,33 @@ if hourly_api_data and "time" in hourly_api_data:
         & (df_hourly["time"] <= now + pd.Timedelta(hours=23))
     ].copy()
 
-        if not df_next_24h.empty:
-            # Vytvorenie horizontálneho pásu s 24 mini-kartami (v jednom riadku bez multiline zátvoriek)
-            cards_html = '<div class="scroll-container">'
-            
-            for _, row in df_next_24h.iterrows():
-                h_time = row["time"]
-                h_temp = row.get("temperature_2m", 0.0)
-                h_code = row.get("weather_code", 0)
-                h_prob = row.get("precipitation_probability", 0)
-                h_icon = get_weather_icon(h_code)
+    if not df_next_24h.empty:
+        cards_html = '<div class="scroll-container">'
 
-                time_str = h_time.strftime("%H:%M")
+        for _, row in df_next_24h.iterrows():
+            h_time = row["time"]
+            h_temp = row.get("temperature_2m", 0.0)
+            h_code = row.get("weather_code", 0)
+            h_prob = row.get("precipitation_probability", 0)
+            h_icon = get_weather_icon(h_code)
 
-                cards_html += (
-                    f'<div class="mini-hourly-card">'
-                    f'<div style="font-size: 0.75em; font-weight: 700; opacity: 0.75;">{time_str}</div>'
-                    f'<div style="font-size: 1.4em; margin: 3px 0;">{h_icon}</div>'
-                    f'<div style="font-size: 1.05em; font-weight: 800;">{h_temp:.1f}°C</div>'
-                    f'<div style="font-size: 0.7em; opacity: 0.75; margin-top: 3px;">💧 {h_prob}%</div>'
-                    f'</div>'
-                )
-            
-            cards_html += '</div>'
+            time_str = h_time.strftime("%H:%M")
+
+            cards_html += (
+                f'<div class="mini-hourly-card">'
+                f'<div style="font-size: 0.75em; font-weight: 700; opacity: 0.75;">{time_str}</div>'
+                f'<div style="font-size: 1.4em; margin: 3px 0;">{h_icon}</div>'
+                f'<div style="font-size: 1.05em; font-weight: 800;">{h_temp:.1f}°C</div>'
+                f'<div style="font-size: 0.7em; opacity: 0.75; margin-top: 3px;">💧 {h_prob}%</div>'
+                f"</div>"
+            )
+
+        cards_html += "</div>"
+        st.markdown(cards_html, unsafe_allow_html=True)
+    else:
+        st.info("Žiadne dáta pre najbližších 24 hodín.")
+else:
+    st.info("Podrobné hodinové dáta predpovede nie sú dostupné.")
             st.markdown(cards_html, unsafe_allow_html=True)
 
            
