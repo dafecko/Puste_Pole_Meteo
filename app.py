@@ -44,6 +44,14 @@ st.markdown(
         transform: translateY(-3px);
         box-shadow: 0 8px 20px rgba(0,0,0,0.1);
     }
+    .hourly-card {
+        background-color: var(--secondary-background-color);
+        border: 1px solid rgba(150, 150, 150, 0.15);
+        border-radius: 12px;
+        padding: 12px;
+        text-align: center;
+        margin-bottom: 10px;
+    }
     .card-title {
         font-size: 0.95em;
         font-weight: 700;
@@ -312,13 +320,17 @@ def load_data():
 
 @st.cache_data(ttl=1800)
 def get_weather_data(lat, lon):
-    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode,sunrise,sunset&timezone=Europe/Bratislava"
+    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode,sunrise,sunset&forecast_days=7&timezone=Europe/Bratislava"
     try:
         response = requests.get(url)
         data = response.json()
-        return data.get("current", None), data.get("daily", None)
+        return (
+            data.get("current", None),
+            data.get("daily", None),
+            data.get("hourly", None),
+        )
     except Exception:
-        return None, None
+        return None, None, None
 
 
 def get_weather_icon(code):
@@ -365,28 +377,30 @@ def get_weather_description(code):
         return "Oblačno"
 
 
+# --- OPRAVENÉ NÁZVOSLOVIE MOON PHASE (SPISOVNÁ SLOVENČINA) ---
 def get_moon_phase_info():
     today = datetime.date.today()
     known_new_moon = datetime.date(2000, 1, 6)
     diff = (today - known_new_moon).days
     synodic_month = 29.5305877057
     phase = (diff % synodic_month) / synodic_month
+
     if phase < 0.03 or phase > 0.97:
         return "🌑 Nov"
     elif phase < 0.22:
-        return "🌒 Dorastajúci polmesiac"
+        return "🌒 Dorastajúci kosák"
     elif phase < 0.28:
         return "🌓 Prvá štvrť"
     elif phase < 0.47:
-        return "🌔 Dorastajúci mesiac"
+        return "🌔 Dorastajúci Mesiac"
     elif phase < 0.53:
         return "🌕 Spln"
     elif phase < 0.72:
-        return "🌖 Cúvajúci mesiac"
+        return "🌖 Ubúdajúci Mesiac"
     elif phase < 0.78:
         return "🌗 Posledná štvrť"
     else:
-        return "🌘 Couvajúci polmesiac"
+        return "🌘 Ubúdajúci kosák"
 
 
 # --- HLAVIČKA A INFO O STANICI ---
@@ -402,7 +416,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-current_api_data, forecast_data = get_weather_data(LAT, LON)
+current_api_data, forecast_data, hourly_api_data = get_weather_data(LAT, LON)
 curr_code = (
     current_api_data.get("weather_code", 0) if current_api_data else 0
 )
@@ -513,7 +527,7 @@ with tab_aktualne:
         })
     if curr_code in [95, 96, 99]:
         active_warnings.append({
-            "title": "Výstrahová búrka!",
+            "title": "Výstraha pred búrkou!",
             "desc": "V oblasti je detekovaná búrková činnosť. Zvýšte opatrnosť.",
             "color": "linear-gradient(135deg, #c0392b, #e74c3c)",
             "icon": "⚡",
@@ -692,7 +706,102 @@ with tab_aktualne:
 
     st.markdown("---")
 
-    # --- PREDPOVEĎ POČASIA ---
+    # --- NOVÁ ČASŤ: PODROBNÁ PREDPOVEĎ NA AKTUÁLNY DEŇ ---
+    st.subheader("⏱️ Podrobná predpoveď na dnešný deň")
+
+    if hourly_api_data and "time" in hourly_api_data:
+        df_hourly = pd.DataFrame(hourly_api_data)
+        df_hourly["time"] = pd.to_datetime(df_hourly["time"])
+
+        dnes = datetime.date.today()
+        df_today = df_hourly[df_hourly["time"].dt.date == dnes].copy()
+
+        if not df_today.empty:
+            # Prehľadové karty pre časové úseky dňa
+            time_slots = [
+                ("Ráno", 8),
+                ("Popoludnie", 14),
+                ("Večer", 19),
+                ("Noc", 23),
+            ]
+            hcols = st.columns(len(time_slots))
+
+            for idx, (slot_name, target_hour) in enumerate(time_slots):
+                row = df_today[df_today["time"].dt.hour == target_hour]
+                if not row.empty:
+                    row = row.iloc[0]
+                    h_temp = row.get("temperature_2m", 0.0)
+                    h_code = row.get("weather_code", 0)
+                    h_prob = row.get("precipitation_probability", 0)
+                    h_icon = get_weather_icon(h_code)
+
+                    with hcols[idx]:
+                        st.markdown(
+                            f"""
+                            <div class="hourly-card">
+                                <div style="font-size: 0.85em; font-weight: 700; opacity: 0.8;">{slot_name} ({target_hour:02d}:00)</div>
+                                <div style="font-size: 1.8em; margin: 4px 0;">{h_icon}</div>
+                                <div style="font-size: 1.2em; font-weight: 800;">{h_temp:.1f} °C</div>
+                                <div style="font-size: 0.78em; opacity: 0.75; margin-top: 2px;">💧 zrážky {h_prob}%</div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+
+            # Graf hodinového priebehu dňa
+            fig_today = go.Figure()
+            fig_today.add_trace(
+                go.Scatter(
+                    x=df_today["time"],
+                    y=df_today["temperature_2m"],
+                    name="Teplota (°C)",
+                    line=dict(color="#e74c3c", width=3),
+                    yaxis="y1",
+                )
+            )
+            fig_today.add_trace(
+                go.Bar(
+                    x=df_today["time"],
+                    y=df_today["precipitation"],
+                    name="Zrážky (mm)",
+                    marker_color="#3498db",
+                    opacity=0.5,
+                    yaxis="y2",
+                )
+            )
+
+            fig_today.update_layout(
+                height=260,
+                margin=dict(l=10, r=10, t=30, b=10),
+                hovermode="x unified",
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=1.02,
+                    xanchor="right",
+                    x=1,
+                ),
+                yaxis=dict(title="Teplota (°C)", side="left"),
+                yaxis2=dict(
+                    title="Zrážky (mm)",
+                    side="right",
+                    overlaying="y",
+                    showgrid=False,
+                ),
+                xaxis=dict(tickformat="%H:%M"),
+            )
+            st.plotly_chart(
+                fig_today,
+                use_container_width=True,
+                theme="streamlit",
+                config={"displayModeBar": False},
+            )
+    else:
+        st.info("Podrobné hodinové dáta predpovede nie sú dostupné.")
+
+    st.markdown("---")
+
+    # --- PREDPOVEĎ POČASIA NA 7 DNÍ ---
     st.subheader("🔮 Predpoveď počasia na najbližšie dni")
     if forecast_data:
         days = forecast_data["time"]
