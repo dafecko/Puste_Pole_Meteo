@@ -744,22 +744,21 @@ with tab_aktualne:
         if not df_next_24h.empty:
             # Vytvorenie horizontálneho pásu s 24 mini-kartami (v jednom riadku bez multiline zátvoriek)
             cards_html = '<div class="scroll-container">'
-            
-            for _, row in df_next_24h.iterrows():
-                h_time = row["time"]
-                h_temp = row.get("temperature_2m", 0.0)
-                h_code = row.get("weather_code", 0)
-                h_prob = row.get("precipitation_probability", 0)
-                h_icon = get_weather_icon(h_code)
 
-                time_str = h_time.strftime("%H:%M")
-            date_str = h_time.strftime("%d.%m.")
+    for _, row in df_next_24h.iterrows():
+      h_time = row["time"]
+      h_temp = row.get("temperature_2m", 0.0)
+      h_code = row.get("weather_code", 0)
+      h_prob = row.get("precipitation_probability", 0)
+      h_icon = get_weather_icon(h_code)
 
-            cards_html += f'<div class="mini-hourly-card"><div style="font-size: 0.75em; font-weight: 700; opacity: 0.75;">{time_str}</div><div style="font-size: 0.6em; font-weight: 600; opacity: 0.5; margin-bottom: 2px;">{date_str}</div><div style="font-size: 1.4em; margin: 2px 0;">{h_icon}</div><div style="font-size: 1.05em; font-weight: 800;">{h_temp:.1f}°C</div><div style="font-size: 0.7em; opacity: 0.75; margin-top: 3px;">💧 {h_prob}%</div></div>'
-            
-            cards_html += '</div>'
-            st.markdown(cards_html, unsafe_allow_html=True)
+      time_str = h_time.strftime("%H:%M")
+      date_str = h_time.strftime("%d.%m.")
 
+      cards_html += f'<div class="mini-hourly-card"><div style="font-size: 0.75em; font-weight: 700; opacity: 0.75;">{time_str}</div><div style="font-size: 0.6em; font-weight: 600; opacity: 0.5; margin-bottom: 2px;">{date_str}</div><div style="font-size: 1.4em; margin: 2px 0;">{h_icon}</div><div style="font-size: 1.05em; font-weight: 800;">{h_temp:.1f}°C</div><div style="font-size: 0.7em; opacity: 0.75; margin-top: 3px;">💧 {h_prob}%</div></div>'
+
+    cards_html += "</div>"
+    st.markdown(cards_html, unsafe_allow_html=True)
            
     else:
         st.info("Podrobné hodinové dáta predpovede nie sú dostupné.")
