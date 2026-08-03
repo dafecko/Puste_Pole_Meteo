@@ -713,8 +713,8 @@ with tab_aktualne:
         df_hourly = pd.DataFrame(hourly_api_data)
         df_hourly["time"] = pd.to_datetime(df_hourly["time"])
 
-        dnes = datetime.date.today()
-        df_today = df_hourly[df_hourly["time"].dt.date == dnes].copy()
+        now = datetime.datetime.now()
+        df_today = df_hourly[(df_hourly["time"] >= now) & (df_hourly["time"] <= now + datetime.timedelta(hours=24))].copy()
 
         if not df_today.empty:
             # Prehľadové karty pre časové úseky dňa
