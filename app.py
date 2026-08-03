@@ -287,10 +287,8 @@ def deg_to_cardinal(deg):
     elif 191.25 <= d < 213.75:
         return "Juho-juhozápad"
     elif 213.75 <= d < 236.25:
-        return "Juhozápad"
-    elif 236.25 <= d < 258.75:
         return "Západno-juhozápad"
-    elif 258.75 <= d < 281.25:
+    elif 236.25 <= d < 258.75:
         return "Západ"
     elif 281.25 <= d < 303.75:
         return "Západno-severozápad"
@@ -455,6 +453,7 @@ t_val, chill_val, heat_val, dew_val, h_val, p_val, w_val, r_val, uv_val = (
 )
 w_cardinal = "-"
 datum_str, cas_str = "", ""
+is_fallback = False
 
 if os.path.exists(CSV_AKTUALNE):
     try:
@@ -504,6 +503,21 @@ if os.path.exists(CSV_AKTUALNE):
     except Exception as e:
         st.error(f"Chyba pri spracovaní aktuálnych dát: {e}")
 
+# ZÁCHRANNÝ REŽIM (FALLBACK): Ak stanica pošle nuly pri tlaku a vlhkosti (výpadok senzorov)
+if p_val == 0.0 and h_val == 0.0:
+    is_fallback = True
+    if current_api_data:
+        t_val = current_api_data.get("temperature_2m", 0.0)
+        h_val = current_api_data.get("relative_humidity_2m", 50.0)
+        w_val = current_api_data.get("wind_speed_10m", 0.0)
+        r_val = current_api_data.get("precipitation", 0.0)
+        p_val = 1013.0  # Bezpečný predvolený tlak
+        uv_val = 0.0
+        chill_val = t_val
+        heat_val = t_val
+        dew_val = t_val
+        w_cardinal = "Model"
+
 if t_val <= 10.0 and chill_val != 0:
     pocitova_val = chill_val
 elif t_val >= 25.0 and heat_val != 0:
@@ -527,7 +541,17 @@ with tab_aktualne:
 
     # --- AUTOMATICKÉ METEO VÝSTRAHY (BANNER) ---
     active_warnings = []
-    if t_val <= 3.0:
+    
+    if is_fallback:
+        active_warnings.append({
+            "title": "Dočasný výpadok dát zo stanice",
+            "desc": "Lokálna stanica momentálne odoslala prázdne/chybné údaje. Budíky aktuálne zobrazujú záložné dáta z online meteorologického modelu.",
+            "color": "linear-gradient(135deg, #f39c12, #d35400)",
+            "icon": "📡",
+        })
+
+    # Mrazový poplach sa ukáže len ak to nie je fallback s nulou, aby nebol falošný
+    if t_val <= 3.0 and not (is_fallback and t_val == 0.0):
         active_warnings.append({
             "title": "Pozor: Hrozí prízemný mráz!",
             "desc": f"Teplota klesla na {t_val:.1f} °C. Hrozí riziko poškodenia vegetácie.",
