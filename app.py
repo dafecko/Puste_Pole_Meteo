@@ -377,7 +377,6 @@ def get_weather_description(code):
         return "Oblačno"
 
 
-# --- OPRAVENÉ NÁZVOSLOVIE MOON PHASE (SPISOVNÁ SLOVENČINA) ---
 def get_moon_phase_info():
     today = datetime.date.today()
     known_new_moon = datetime.date(2000, 1, 6)
@@ -706,63 +705,64 @@ with tab_aktualne:
 
     st.markdown("---")
 
-    # --- NOVÁ ČASŤ: PODROBNÁ PREDPOVEĎ NA AKTUÁLNY DEŇ ---
-    st.subheader("⏱️ Podrobná predpoveď na dnešný deň")
+    # --- PODROBNÁ PREDPOVEĎ NA NAJBLIŽŠÍCH 24 HODÍN ---
+    st.subheader("⏱️ Podrobná predpoveď na najbližších 24 hodín")
 
     if hourly_api_data and "time" in hourly_api_data:
         df_hourly = pd.DataFrame(hourly_api_data)
         df_hourly["time"] = pd.to_datetime(df_hourly["time"])
 
+        # Kĺzavých 24 hodín od aktuálneho času
         now = datetime.datetime.now()
-        df_today = df_hourly[(df_hourly["time"] >= now) & (df_hourly["time"] <= now + datetime.timedelta(hours=24))].copy()
+        df_next_24h = df_hourly[
+            (df_hourly["time"] >= now) & (df_hourly["time"] <= now + datetime.timedelta(hours=24))
+        ].copy()
 
-        if not df_today.empty:
-            # Prehľadové karty pre časové úseky dňa
-            time_slots = [
-                ("Ráno", 8),
-                ("Popoludnie", 14),
-                ("Večer", 19),
-                ("Noc", 23),
-            ]
-            hcols = st.columns(len(time_slots))
+        if not df_next_24h.empty:
+            # Výber 4 kľúčových bodov v 6-hodinových intervaloch od aktuálneho času
+            sample_points = df_next_24h.iloc[::6].head(4)
+            hcols = st.columns(len(sample_points))
 
-            for idx, (slot_name, target_hour) in enumerate(time_slots):
-                row = df_today[df_today["time"].dt.hour == target_hour]
-                if not row.empty:
-                    row = row.iloc[0]
-                    h_temp = row.get("temperature_2m", 0.0)
-                    h_code = row.get("weather_code", 0)
-                    h_prob = row.get("precipitation_probability", 0)
-                    h_icon = get_weather_icon(h_code)
+            for idx, (_, row) in enumerate(sample_points.iterrows()):
+                h_time = row["time"]
+                h_temp = row.get("temperature_2m", 0.0)
+                h_code = row.get("weather_code", 0)
+                h_prob = row.get("precipitation_probability", 0)
+                h_icon = get_weather_icon(h_code)
 
-                    with hcols[idx]:
-                        st.markdown(
-                            f"""
-                            <div class="hourly-card">
-                                <div style="font-size: 0.85em; font-weight: 700; opacity: 0.8;">{slot_name} ({target_hour:02d}:00)</div>
-                                <div style="font-size: 1.8em; margin: 4px 0;">{h_icon}</div>
-                                <div style="font-size: 1.2em; font-weight: 800;">{h_temp:.1f} °C</div>
-                                <div style="font-size: 0.78em; opacity: 0.75; margin-top: 2px;">💧 zrážky {h_prob}%</div>
-                            </div>
-                            """,
-                            unsafe_allow_html=True,
-                        )
+                # Formátovanie času a dňa (napr. Dnes 14:00, Zajtra 08:00)
+                is_today = h_time.date() == now.date()
+                day_label = "Dnes" if is_today else "Zajtra"
+                time_label = f"{day_label} {h_time.strftime('%H:%M')}"
 
-            # Graf hodinového priebehu dňa
-            fig_today = go.Figure()
-            fig_today.add_trace(
+                with hcols[idx]:
+                    st.markdown(
+                        f"""
+                        <div class="hourly-card">
+                            <div style="font-size: 0.85em; font-weight: 700; opacity: 0.8;">{time_label}</div>
+                            <div style="font-size: 1.8em; margin: 4px 0;">{h_icon}</div>
+                            <div style="font-size: 1.2em; font-weight: 800;">{h_temp:.1f} °C</div>
+                            <div style="font-size: 0.78em; opacity: 0.75; margin-top: 2px;">💧 zrážky {h_prob}%</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+            # Graf hodinového priebehu na 24 hodín
+            fig_24h = go.Figure()
+            fig_24h.add_trace(
                 go.Scatter(
-                    x=df_today["time"],
-                    y=df_today["temperature_2m"],
+                    x=df_next_24h["time"],
+                    y=df_next_24h["temperature_2m"],
                     name="Teplota (°C)",
                     line=dict(color="#e74c3c", width=3),
                     yaxis="y1",
                 )
             )
-            fig_today.add_trace(
+            fig_24h.add_trace(
                 go.Bar(
-                    x=df_today["time"],
-                    y=df_today["precipitation"],
+                    x=df_next_24h["time"],
+                    y=df_next_24h["precipitation"],
                     name="Zrážky (mm)",
                     marker_color="#3498db",
                     opacity=0.5,
@@ -770,7 +770,7 @@ with tab_aktualne:
                 )
             )
 
-            fig_today.update_layout(
+            fig_24h.update_layout(
                 height=260,
                 margin=dict(l=10, r=10, t=30, b=10),
                 hovermode="x unified",
@@ -788,10 +788,10 @@ with tab_aktualne:
                     overlaying="y",
                     showgrid=False,
                 ),
-                xaxis=dict(tickformat="%H:%M"),
+                xaxis=dict(tickformat="%d.%m. %H:%M"),
             )
             st.plotly_chart(
-                fig_today,
+                fig_24h,
                 use_container_width=True,
                 theme="streamlit",
                 config={"displayModeBar": False},
