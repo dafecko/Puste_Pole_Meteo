@@ -742,7 +742,7 @@ with tab_aktualne:
         ].copy()
 
         if not df_next_24h.empty:
-            # Vytvorenie horizontálneho pásu s 24 mini-kartami
+            # Vytvorenie horizontálneho pásu s 24 mini-kartami (v jednom riadku bez multiline zátvoriek)
             cards_html = '<div class="scroll-container">'
             
             for _, row in df_next_24h.iterrows():
@@ -754,14 +754,14 @@ with tab_aktualne:
 
                 time_str = h_time.strftime("%H:%M")
 
-                cards_html += f"""
-                <div class="mini-hourly-card">
-                    <div style="font-size: 0.75em; font-weight: 700; opacity: 0.75;">{time_str}</div>
-                    <div style="font-size: 1.4em; margin: 3px 0;">{h_icon}</div>
-                    <div style="font-size: 1.05em; font-weight: 800;">{h_temp:.1f}°C</div>
-                    <div style="font-size: 0.7em; opacity: 0.75; margin-top: 3px;">💧 {h_prob}%</div>
-                </div>
-                """
+                cards_html += (
+                    f'<div class="mini-hourly-card">'
+                    f'<div style="font-size: 0.75em; font-weight: 700; opacity: 0.75;">{time_str}</div>'
+                    f'<div style="font-size: 1.4em; margin: 3px 0;">{h_icon}</div>'
+                    f'<div style="font-size: 1.05em; font-weight: 800;">{h_temp:.1f}°C</div>'
+                    f'<div style="font-size: 0.7em; opacity: 0.75; margin-top: 3px;">💧 {h_prob}%</div>'
+                    f'</div>'
+                )
             
             cards_html += '</div>'
             st.markdown(cards_html, unsafe_allow_html=True)
