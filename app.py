@@ -125,7 +125,7 @@ st.markdown(
         opacity: 0.6;
         text-align: right;
     }
-    .thermometer-box, .pressure-box {
+    .thermometer-box, .pressure-box, .rain-box {
         height: 100px;
         width: 16px;
         background: rgba(128, 128, 128, 0.15);
@@ -145,6 +145,13 @@ st.markdown(
         bottom: 0;
         width: 100%;
         background: linear-gradient(to top, #3498db, #9b59b6);
+        transition: height 0.5s ease;
+    }
+    .rain-fill {
+        position: absolute;
+        bottom: 0;
+        width: 100%;
+        background: linear-gradient(to top, #74b9ff, #0984e3);
         transition: height 0.5s ease;
     }
 
@@ -619,11 +626,13 @@ with tab_aktualne:
         unsafe_allow_html=True,
     )
 
+    # Výpočty pre zobrazenie budíkov a stĺpcov
     temp_pct = min(100, max(0, ((t_val + 20) / 70) * 100))
     press_pct = min(100, max(0, ((p_val - 950) / (1050 - 950)) * 100))
     hum_angle = (h_val / 100) * 270 - 135
     wind_angle = min(135, max(-135, (w_val / 50) * 270 - 135))
     uv_angle = min(135, max(-135, (uv_val / 12) * 270 - 135))
+    rain_pct = min(100, max(0, (r_val / 50) * 100))
 
     if h_val < 30:
         hum_desc = "Suchý vzduch (pod 30%)"
@@ -649,8 +658,21 @@ with tab_aktualne:
         uv_desc = f"UV index {uv_val:.1f}: Veľmi vysoké riziko!"
     else:
         uv_desc = f"UV index {uv_val:.1f}: Extrémne riziko!"
+        
+    if r_val == 0:
+        rain_desc = "Aktuálne bez zrážok"
+    elif r_val < 2.5:
+        rain_desc = "Slabé zrážky / Mrholenie"
+    elif r_val < 10:
+        rain_desc = "Mierne zrážky"
+    elif r_val < 30:
+        rain_desc = "Výdatné zrážky / Dážď"
+    else:
+        rain_desc = "Extrémne zrážky / Prívalový dážď"
 
-    col1, col2, col3, col4, col5 = st.columns(5)
+    # ROZLOŽENIE NA 6 STĹPCOV PRE NOVÝ ZRÁŽKOMER
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
+    
     with col1:
         st.markdown(
             f"""
@@ -730,7 +752,22 @@ with tab_aktualne:
                     <div class="gauge-center-dot"></div>
                 </div>
                 <div class="main-value-tooltip" title="{uv_desc}">{uv_val:.1f}</div>
-                <div class="sub-value">Zrážky: {r_val:.1f} mm</div>
+                <div class="sub-value">Intenzita žiarenia</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with col6:
+        st.markdown(
+            f"""
+            <div class="weather-card">
+                <div class="card-title">Úhrn zrážok</div>
+                <div class="bar-container">
+                    <div class="bar-scale"><span>50</span><span>25</span><span>10</span><span>0</span></div>
+                    <div class="rain-box"><div class="rain-fill" style="height: {rain_pct}%;"></div></div>
+                </div>
+                <div class="main-value-tooltip" title="{rain_desc}">{r_val:.1f} mm</div>
+                <div class="sub-value">Zrážkomer</div>
             </div>
             """,
             unsafe_allow_html=True,
