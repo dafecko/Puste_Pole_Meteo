@@ -257,7 +257,8 @@ st.markdown(
 # --- KONŠTANTY A SÚBORY ---
 CSV_FILE = "meteo_puste_pole_v2.csv"
 CSV_AKTUALNE = "meteo_aktualne.csv"
-LAT, LON = 49.215, 20.90
+# Presné súradnice Pustého Poľa (medzi Plavčom a Kyjovom)
+LAT, LON = 49.215, 20.900
 
 # --- POMOCNÉ FUNKCIE ---
 def deg_to_cardinal(deg):
@@ -873,17 +874,17 @@ with tab_aktualne:
                     unsafe_allow_html=True,
                 )
 
-# --- NOVÁ ZÁLOŽKA: ŽIVÝ ZRÁŽKOVÝ RADAR ---
+# --- NOVÁ ZÁLOŽKA: ŽIVÝ ZRÁŽKOVÝ RADAR A PREDPOVEĎ ---
 with tab_radar:
-    st.subheader("📡 Živá meteorologická mapa a radar zrážok")
-    st.caption("Pusté Pole a okolie • Živý radarový snímok postupujúcich zrážok a búrok.")
+    st.subheader("📡 Živý zrážkový radar a krátkodobá predpoveď")
+    st.caption("Pusté Pole a okolie • Postup zrážok s možnosťou posunu v čase na najbližšie hodiny.")
 
-    # Vloženie Windy iframe mapy presne nastavenej na Pusté Pole
+    # Radar s predpoveďou zrážok (overlay=rain) vycentrovaný presne na Pusté Pole
     windy_iframe_code = f"""
     <iframe 
         width="100%" 
         height="600" 
-        src="https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&metricWind=km%2Fh&zoom=8&overlay=radar&product=radar&level=surface&lat={LAT}&lon={LON}&detailLat={LAT}&detailLon={LON}&marker=true" 
+        src="https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&metricWind=km%2Fh&zoom=9&overlay=rain&product=ecmwf&level=surface&lat={LAT}&lon={LON}&detailLat={LAT}&detailLon={LON}&marker=true" 
         frameborder="0"
         style="border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"
     ></iframe>
