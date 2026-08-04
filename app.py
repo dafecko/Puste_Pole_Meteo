@@ -257,7 +257,7 @@ st.markdown(
 # --- KONŠTANTY A SÚBORY ---
 CSV_FILE = "meteo_puste_pole_v2.csv"
 CSV_AKTUALNE = "meteo_aktualne.csv"
-LAT, LON = 49.18, 20.85
+LAT, LON = 49.215, 20.90
 
 # --- POMOCNÉ FUNKCIE ---
 def deg_to_cardinal(deg):
