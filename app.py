@@ -5,11 +5,13 @@ import plotly.express as px
 import plotly.graph_objects as go
 import requests
 import streamlit as st
+import streamlit.components.v1 as components
 from streamlit_autorefresh import st_autorefresh
 
 # --- NASTAVENIE STRÁNCY ---
 st.set_page_config(
     page_title="Meteo Web Dashboard - Pusté Pole",
+    page_icon="🌤️",
     layout="wide"
 )
 
@@ -294,8 +296,10 @@ def deg_to_cardinal(deg):
     elif 191.25 <= d < 213.75:
         return "Juho-juhozápad"
     elif 213.75 <= d < 236.25:
-        return "Západno-juhozápad"
+        return "Juhozápad"
     elif 236.25 <= d < 258.75:
+        return "Západno-juhozápad"
+    elif 258.75 <= d < 281.25:
         return "Západ"
     elif 281.25 <= d < 303.75:
         return "Západno-severozápad"
@@ -538,8 +542,12 @@ else:
         pocitova_val = t_val
 
 # --- HLAVNÉ ZÁLOŽKY (TABS) ---
-tab_aktualne, tab_historia = st.tabs(
-    ["🌤️ Aktuálne počasie & Predpoveď", "📊 História & Rekordy stanice"]
+tab_aktualne, tab_radar, tab_historia = st.tabs(
+    [
+        "🌤️ Aktuálne počasie & Predpoveď",
+        "📡 Živý zrážkový radar",
+        "📊 História & Rekordy stanice",
+    ]
 )
 
 with tab_aktualne:
@@ -626,7 +634,6 @@ with tab_aktualne:
         unsafe_allow_html=True,
     )
 
-    # Výpočty pre zobrazenie budíkov a stĺpcov
     temp_pct = min(100, max(0, ((t_val + 20) / 70) * 100))
     press_pct = min(100, max(0, ((p_val - 950) / (1050 - 950)) * 100))
     hum_angle = (h_val / 100) * 270 - 135
@@ -670,7 +677,6 @@ with tab_aktualne:
     else:
         rain_desc = "Extrémne zrážky / Prívalový dážď"
 
-    # ROZLOŽENIE NA 6 STĹPCOV PRE NOVÝ ZRÁŽKOMER
     col1, col2, col3, col4, col5, col6 = st.columns(6)
     
     with col1:
@@ -807,9 +813,6 @@ with tab_aktualne:
                 time_str = h_time.strftime("%H:%M")
                 date_str = h_time.strftime("%d.%m.")
 
-                # Odlíšenie štýlu: modrá + tučné písmo, ak zrážky > 0,
-                # ak je 0.0 ale pravdepodobnosť je vysoká, ukážeme < 0.1 mm
-                # inak to úplne skryjeme, aby to nerušilo vizuál pri slnečnom počasí
                 if h_precip > 0:
                     precip_html = f'<div style="font-size: 0.65em; color: #3498db; font-weight: 800; margin-top: 1px;">{h_precip:.1f} mm</div>'
                 elif h_prob >= 10:
@@ -869,6 +872,23 @@ with tab_aktualne:
                     """,
                     unsafe_allow_html=True,
                 )
+
+# --- NOVÁ ZÁLOŽKA: ŽIVÝ ZRÁŽKOVÝ RADAR ---
+with tab_radar:
+    st.subheader("📡 Živá meteorologická mapa a radar zrážok")
+    st.caption("Pusté Pole a okolie • Živý radarový snímok postupujúcich zrážok a búrok.")
+
+    # Vloženie Windy iframe mapy presne nastavenej na Pusté Pole
+    windy_iframe_code = f"""
+    <iframe 
+        width="100%" 
+        height="600" 
+        src="https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&metricWind=km%2Fh&zoom=8&overlay=radar&product=radar&level=surface&lat={LAT}&lon={LON}&detailLat={LAT}&detailLon={LON}&marker=true" 
+        frameborder="0"
+        style="border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"
+    ></iframe>
+    """
+    components.html(windy_iframe_code, height=620)
 
 with tab_historia:
     df = load_data()
