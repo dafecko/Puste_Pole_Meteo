@@ -8,8 +8,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 5 # Bezpečnostná poistka
     permissions:
       contents: write
+
     steps:
       - name: Stiahnutie repozitára
         uses: actions/checkout@v4
@@ -19,10 +21,10 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Inštalácia knižníc a prehliadača pre Playwright
+      - name: Inštalácia knižníc
         run: |
-          pip install -r requirements.txt
-          playwright install
+          python -m pip install --upgrade pip
+          pip install requests pandas
 
       - name: Spustenie zberu dát
         run: python update_weather.py
