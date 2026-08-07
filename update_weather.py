@@ -1,15 +1,19 @@
 import datetime
 from zoneinfo import ZoneInfo
-from playwright.sync_api import sync_playwright
 import pandas as pd
+import requests
+
+# Konštanty
+DEVICE_ID = "8797717349"
+URL_VALUES = f"https://app.weathercloud.net/device/values?code={DEVICE_ID}"
+CSV_FILE = "meteo_aktualne.csv"
 
 
 def deg_to_slovak_word(deg):
   """Prevedie stupne na slovný názov svetovej strany v slovenčine."""
-  if pd.isna(deg) or deg == "-" or deg == "":
+  if pd.isna(deg) or deg == "-" or deg == "" or deg is None:
     return "-"
 
-  # Ošetrenie pre rôzne typy znakov stupňa (° aj º)
   deg_str = (
       str(deg)
       .replace("°", "")
@@ -59,139 +63,74 @@ def deg_to_slovak_word(deg):
   return "Sever"
 
 
+def clean_val(val, scale=1.0):
+  """Vyčistí hodnotu na číslo a vynásobí ju skálovacím koeficientom."""
+  if val is None or val == "":
+    return 0.0
+  try:
+    return round(float(val) * scale, 1)
+  except (ValueError, TypeError):
+    return 0.0
+
+
 def scrape_weather():
-  url = "https://app.weathercloud.net/d8797717349#current"
-  print(
-      "Sťahujem kompletnú sadu meteorologických údajov z Weathercloud"
-      " (vrátane tlaku, smeru vetra a pocitových teplôt)..."
-  )
+  print("Sťahujem aktuálne meteorologické údaje z Weathercloud API...")
 
-  teplota, vlhkost, zrazky, uv_index = "0", "0", "0", "0"
-  tlak, pocitova_chill, heat_index, rosny_bod = "0", "0", "0", "0"
-  vietor, smer_vetra = "0", "0"
+  session = requests.Session()
+  session.headers.update({
+      "User-Agent": (
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+          " (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
+      ),
+      "X-Requested-With": "XMLHttpRequest",
+      "Referer": f"https://app.weathercloud.net/d{DEVICE_ID}",
+      "Connection": "close",
+  })
 
-  with sync_playwright() as p:
-    browser = p.chromium.launch(headless=True)
-    page = browser.new_page()
-    page.goto(url)
-    page.wait_for_timeout(8000)
+  data_val = {}
+  try:
+    response = session.get(URL_VALUES, timeout=5)
+    if response.status_code == 200:
+      data_val = response.json()
+    else:
+      print(f"⚠️ Weathercloud vrátil status code: {response.status_code}")
+  except Exception as e:
+    print(f"❌ Chyba pri spájaní s API: {e}")
 
-    try:
-      page.evaluate(
-          "const overlay = document.querySelector('.fc-consent-root'); if"
-          " (overlay) overlay.remove();"
-      )
-    except Exception:
-      pass
+  if not data_val:
+    raise RuntimeError(
+        "❌ Nepodarilo sa získať žiadne dáta z Weathercloud API."
+    )
 
-    try:
-      el = page.locator("#temp .temp-value-text")
-      if el.count() > 0:
-        teplota = el.first.text_content()
-    except Exception as e:
-      print(f"Teplota chyba: {e}")
+  # Extrakcia hodnôt priamo z API
+  teplota = clean_val(data_val.get("temp"), scale=0.1)
+  chill_val = clean_val(data_val.get("chill"), scale=0.1)
+  heat_val = clean_val(data_val.get("heat"), scale=0.1)
+  dew_val = clean_val(data_val.get("dew"), scale=0.1)
+  vlhkost = clean_val(data_val.get("hum"))
+  tlak = clean_val(data_val.get("bar"), scale=0.1)
+  zrazky = clean_val(data_val.get("rain"), scale=0.1)
+  uv_val = clean_val(data_val.get("uvi"))
 
-    try:
-      el = page.locator("#hum .hum-value-text")
-      if el.count() > 0:
-        vlhkost = el.first.text_content()
-    except Exception as e:
-      print(f"Vlhkosť chyba: {e}")
-
-    try:
-      el = page.locator("#bar .bar-value-text")
-      if el.count() > 0:
-        tlak = el.first.text_content()
-    except Exception as e:
-      print(f"Tlak chyba: {e}")
-
-    try:
-      el = page.locator("#rain .rain-value-text")
-      if el.count() > 0:
-        zrazky = el.first.text_content()
-    except Exception as e:
-      print(f"Zrážky chyba: {e}")
-
-    try:
-      el = page.locator("#uvi .uvi-value-text")
-      if el.count() > 0:
-        uv_index = el.first.text_content()
-    except Exception as e:
-      print(f"UV index chyba: {e}")
-
-    try:
-      el = page.locator("#chill .chill-value-text")
-      if el.count() > 0:
-        pocitova_chill = el.first.text_content()
-    except Exception as e:
-      print(f"Wind Chill chyba: {e}")
-
-    try:
-      el = page.locator("#heat .heat-value-text")
-      if el.count() > 0:
-        heat_index = el.first.text_content()
-    except Exception as e:
-      print(f"Heat Index chyba: {e}")
-
-    try:
-      el = page.locator("#dew .dew-value-text")
-      if el.count() > 0:
-        rosny_bod = el.first.text_content()
-    except Exception as e:
-      print(f"Rosný bod chyba: {e}")
-
-    try:
-      page.locator("a[href*='wind']").first.click()
-      page.wait_for_timeout(4000)
-
-      el_wind = page.locator("#wspd .wspd-value-text")
-      if el_wind.count() > 0:
-        vietor = el_wind.first.text_content()
-
-      el_wdir = page.locator("#wdir .wdir-value-text")
-      if el_wdir.count() > 0:
-        smer_vetra = el_wdir.first.text_content()
-    except Exception as e:
-      print(f"Vietor / Smer vetra chyba: {e}")
-
-    browser.close()
-
-  def clean_val(val):
-    if not val:
-      return 0.0
-    cleaned = "".join([c for c in str(val) if c.isdigit() or c in [".", "-"]])
-    try:
-      return float(cleaned)
-    except:
-      return 0.0
-
-  t_val = clean_val(teplota)
-  h_val = clean_val(vlhkost)
-  r_val = clean_val(zrazky)
-  uv_val = clean_val(uv_index)
-  p_val = clean_val(tlak)
-  chill_val = clean_val(pocitova_chill)
-  heat_val = clean_val(heat_index)
-  dew_val = clean_val(rosny_bod)
-
-  w_val_ms = clean_val(vietor)
+  # Vietor (Weathercloud posiela m/s * 10, prepočet na km/h)
+  w_val_ms = clean_val(data_val.get("wspd"), scale=0.1)
   w_val = round(w_val_ms * 3.6, 1)
 
-  # Prevod na slovné vyjadrenie so zohľadnením znaku º
-  smer_str = deg_to_slovak_word(smer_vetra)
+  smer_deg = data_val.get("wdir")
+  smer_str = deg_to_slovak_word(smer_deg)
 
   teraz = datetime.datetime.now(ZoneInfo("Europe/Bratislava"))
 
   data = [{
       "Dátum": teraz.strftime("%d.%m.%Y"),
       "Čas": teraz.strftime("%H:%M"),
-      "Teplota (°C)": t_val,
+      "Teplota (°C)": teplota,
       "Wind Chill (°C)": chill_val,
       "Heat Index (°C)": heat_val,
       "Rosný bod (°C)": dew_val,
-      "Vlhkosť (%)": h_val,
-      "Tlak (hPa)": p_val,
-      "Zrážky (mm)": r_val,
+      "Vlhkosť (%)": vlhkost,
+      "Tlak (hPa)": tlak,
+      "Zrážky (mm)": zrazky,
       "Vietor (km/h)": w_val,
       "Smer vetra": smer_str,
       "UV index": uv_val,
@@ -199,12 +138,11 @@ def scrape_weather():
 
   df = pd.DataFrame(data)
   df.to_csv(
-      "meteo_aktualne.csv", sep=";", decimal=",", index=False, encoding="utf-8-sig"
+      CSV_FILE, sep=";", decimal=",", index=False, encoding="utf-8-sig"
   )
   print(
-      f"✅ Hotovo! Dáta úspešne uložené do meteo_aktualne.csv (Tlak:"
-      f" {p_val} hPa, Smer: {smer_str}, Heat: {heat_val}°C, Chill:"
-      f" {chill_val}°C, Rosný bod: {dew_val}°C)"
+      f"✅ Hotovo! Dáta úspešne uložené do {CSV_FILE} (Tlak: {tlak} hPa, Smer:"
+      f" {smer_str}, Teplota: {teplota}°C)"
   )
 
 
