@@ -63,8 +63,8 @@ def deg_to_slovak_word(deg):
   return "Sever"
 
 
-def clean_val(val, scale=1.0):
-  """Vyčistí hodnotu na číslo a vynásobí ju skálovacím koeficientom."""
+def parse_wc_val(val, scale=1.0):
+  """Prevedie hodnotu z Weathercloud API na správne číslo."""
   if val is None or val == "":
     return 0.0
   try:
@@ -102,19 +102,44 @@ def scrape_weather():
         "❌ Nepodarilo sa získať žiadne dáta z Weathercloud API."
     )
 
-  # Extrakcia hodnôt priamo z API
-  teplota = clean_val(data_val.get("temp"), scale=0.1)
-  chill_val = clean_val(data_val.get("chill"), scale=0.1)
-  heat_val = clean_val(data_val.get("heat"), scale=0.1)
-  dew_val = clean_val(data_val.get("dew"), scale=0.1)
-  vlhkost = clean_val(data_val.get("hum"))
-  tlak = clean_val(data_val.get("bar"), scale=0.1)
-  zrazky = clean_val(data_val.get("rain"), scale=0.1)
-  uv_val = clean_val(data_val.get("uvi"))
+  # Weathercloud posiela hodnoty v desatinách (napr. 220 = 22.0°C, 10160 = 1016.0 hPa)
+  # Ak posiela celú hodnotu (napr. 22), scale=0.1 ju zmenila na 2.2.
+  # Upravujeme podmienkovo:
+  
+  raw_temp = parse_wc_val(data_val.get("temp"))
+  teplota = round(raw_temp / 10.0, 1) if abs(raw_temp) > 50 else raw_temp
 
-  # Vietor (Weathercloud posiela m/s * 10, prepočet na km/h)
-  w_val_ms = clean_val(data_val.get("wspd"), scale=0.1)
-  w_val = round(w_val_ms * 3.6, 1)
+  raw_chill = parse_wc_val(data_val.get("chill"))
+  chill_val = round(raw_chill / 10.0, 1) if abs(raw_chill) > 50 else raw_chill
+
+  raw_heat = parse_wc_val(data_val.get("heat"))
+  heat_val = round(raw_heat / 10.0, 1) if abs(raw_heat) > 50 else raw_heat
+
+  raw_dew = parse_wc_val(data_val.get("dew"))
+  dew_val = round(raw_dew / 10.0, 1) if abs(raw_dew) > 50 else raw_dew
+
+  vlhkost = parse_wc_val(data_val.get("hum"))
+
+  # Tlak (ak je okolo 10000, delíme 10, ak je okolo 100, násobíme 10)
+  raw_bar = parse_wc_val(data_val.get("bar"))
+  if raw_bar > 5000:
+    tlak = round(raw_bar / 10.0, 1)
+  elif raw_bar < 500:
+    tlak = round(raw_bar * 10.0, 1)
+  else:
+    tlak = raw_bar
+
+  # Zrážky & UV
+  raw_rain = parse_wc_val(data_val.get("rain"))
+  zrazky = round(raw_rain / 10.0, 1) if raw_rain > 100 else raw_rain
+  
+  raw_uvi = parse_wc_val(data_val.get("uvi"))
+  uv_val = round(raw_uvi / 10.0, 1) if raw_uvi > 20 else raw_uvi
+
+  # Vietor (m/s prepočet na km/h)
+  raw_wind = parse_wc_val(data_val.get("wspd"))
+  w_ms = raw_wind / 10.0 if raw_wind > 50 else raw_wind
+  w_val = round(w_ms * 3.6, 1)
 
   smer_deg = data_val.get("wdir")
   smer_str = deg_to_slovak_word(smer_deg)
@@ -141,8 +166,8 @@ def scrape_weather():
       CSV_FILE, sep=";", decimal=",", index=False, encoding="utf-8-sig"
   )
   print(
-      f"✅ Hotovo! Dáta úspešne uložené do {CSV_FILE} (Tlak: {tlak} hPa, Smer:"
-      f" {smer_str}, Teplota: {teplota}°C)"
+      f"✅ Hotovo! Dáta úspešne uložené do {CSV_FILE} (Teplota: {teplota}°C, Tlak:"
+      f" {tlak} hPa)"
   )
 
 
