@@ -4,14 +4,14 @@ on:
   schedule:
     # Každý deň o 23:57 nášho času (21:57 UTC)
     - cron: '57 21 * * *'
-  workflow_dispatch:
+  workflow_dispatch: # Tlačidlo na ručné spustenie v rozhraní GitHubu
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 5 # Bezpečnostná poistka (utne proces ak zavesí sieť)
     permissions:
-      contents: write
+      contents: write # Umožní uloženie zmien do CSV súboru
 
     steps:
       - name: Stiahnutie repozitára
@@ -28,7 +28,7 @@ jobs:
           pip install requests pandas
 
       - name: Spustenie denného zberu
-        run: python meteo_zber.py
+        run: python meteo_zber_v2.py
 
       - name: Uloženie zmien do archívu
         run: |
