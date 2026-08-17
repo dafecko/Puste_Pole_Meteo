@@ -16,12 +16,12 @@ st.set_page_config(
     layout="wide",
 )
 
-# Vynútenie načítania čerstvých dát hneď pri prvom otvorení aplikácie
+# Vynútenie načítania dát pri prvom otvorení
 if "initialized" not in st.session_state:
   st.session_state.initialized = True
   st.rerun()
 
-# Automatické obnovenie stránky každých 5 minút (300 000 ms)
+# Automatické obnovenie každých 5 minút
 count = st_autorefresh(interval=300000, limit=None, key="meteo_autorefresh")
 
 # --- VLASTNÉ CSS ŠTÝLY ---
@@ -312,7 +312,7 @@ def deg_to_cardinal(deg):
   return "Sever"
 
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=300)
 def load_data():
   if not os.path.exists(CSV_FILE):
     return None
@@ -338,7 +338,6 @@ def load_data():
   if not col_datum or not col_cas:
     return df
 
-  # Filtrovanie prednostne na večerný celodenný zber (23:57)
   df["Cas_clean"] = df[col_cas].astype(str).str.strip()
   df["is_night"] = df["Cas_clean"].str.startswith("23:5")
 
@@ -349,7 +348,6 @@ def load_data():
   )
   df = df.dropna(subset=["DateTime"])
 
-  # Zoradíme tak, aby záznam o 23:57 bol pre daný deň na konci a ponecháme ho
   df = df.sort_values(by=[col_datum, "is_night", "DateTime"])
   df = df.drop_duplicates(subset=[col_datum], keep="last")
   df = df.sort_values("DateTime").drop(columns=["Cas_clean", "is_night"])
@@ -362,24 +360,41 @@ def load_data():
   return df
 
 
+@st.cache_data(ttl=300)
 def fetch_weather_api_data(lat, lon):
-  url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code,sunrise,sunset&forecast_days=7&timezone=auto"
-  headers = {"User-Agent": "MeteoPustePoleApp/1.0"}
+  url = (
+      f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
+      "&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m"
+      "&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m"
+      "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code,sunrise,sunset"
+      "&forecast_days=7&timezone=Europe%2FBratislava"
+  )
+  headers = {
+      "User-Agent": (
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      )
+  }
   try:
-    response = requests.get(url, headers=headers, timeout=10)
+    response = requests.get(url, headers=headers, timeout=8)
     if response.status_code == 200:
       data = response.json()
       return (
-          data.get("current", None),
-          data.get("daily", None),
-          data.get("hourly", None),
+          data.get("current", {}),
+          data.get("daily", {}),
+          data.get("hourly", {}),
       )
+    else:
+      st.error(f"Open-Meteo API chyba (kód {response.status_code})")
   except Exception as e:
-    print(f"Chyba Open-Meteo: {e}")
-  return None, None, None
+    st.error(f"Chyba pripojenia na Open-Meteo: {e}")
+  return {}, {}, {}
 
 
 def get_weather_icon(code):
+  try:
+    code = int(code)
+  except:
+    return "🌤️"
   if code == 0:
     return "☀️"
   elif code in [1, 2]:
@@ -399,6 +414,10 @@ def get_weather_icon(code):
 
 
 def get_weather_description(code):
+  try:
+    code = int(code)
+  except:
+    return "Oblačno"
   if code == 0:
     return "Jasno"
   elif code in [1, 2]:
@@ -464,20 +483,24 @@ st.markdown(
 current_api_data, forecast_data, hourly_api_data = fetch_weather_api_data(
     LAT, LON
 )
-curr_code = current_api_data.get("weather_code", 0) if current_api_data else 0
+curr_code = current_api_data.get("weather_code", 0)
 curr_icon = get_weather_icon(curr_code)
 curr_desc = get_weather_description(curr_code)
 
 sunrise_str, sunset_str = "--:--", "--:--"
-if forecast_data and "sunrise" in forecast_data and "sunset" in forecast_data:
+if (
+    forecast_data
+    and "sunrise" in forecast_data
+    and len(forecast_data["sunrise"]) > 0
+):
   try:
-    sunrise_str = forecast_data["sunrise"][0].split("T")[1]
-    sunset_str = forecast_data["sunset"][0].split("T")[1]
+    sunrise_str = forecast_data["sunrise"][0].split("T")[1][:5]
+    sunset_str = forecast_data["sunset"][0].split("T")[1][:5]
   except:
     pass
 moon_phase_str = get_moon_phase_info()
 
-# Načítanie aktuálnych dát zo súboru
+# Načítanie lokálnych aktuálnych dát
 t_val, chill_val, heat_val, dew_val, h_val, p_val, w_val, r_val, uv_val = (
     0.0,
     0.0,
@@ -506,13 +529,13 @@ if os.path.exists(CSV_AKTUALNE):
 
     if not df_akt.empty:
       akt = df_akt.iloc[0]
-      datum_str = akt.get("Dátum", akt.get("datum", ""))
-      cas_str = akt.get("Čas", akt.get("cas", ""))
+      datum_str = str(akt.get("Dátum", akt.get("datum", "")))
+      cas_str = str(akt.get("Čas", akt.get("cas", "")))
 
       def get_val(df_row, keywords):
         for k in keywords:
           for col in df_row.index:
-            if k.lower() in col.lower():
+            if k.lower() in str(col).lower():
               val = df_row[col]
               try:
                 return float(str(val).replace(",", "."))
@@ -523,7 +546,7 @@ if os.path.exists(CSV_AKTUALNE):
       def get_str_val(df_row, keywords):
         for k in keywords:
           for col in df_row.index:
-            if k.lower() in col.lower():
+            if k.lower() in str(col).lower():
               return str(df_row[col])
         return "-"
 
@@ -539,9 +562,8 @@ if os.path.exists(CSV_AKTUALNE):
       uv_val = get_val(akt, ["uv", "uvi"])
       w_cardinal = deg_to_cardinal(w_dir_raw)
   except Exception as e:
-    st.error(f"Chyba pri spracovaní aktuálnych dát: {e}")
+    st.error(f"Chyba pri spracovaní CSV: {e}")
 
-# ZÁCHRANNÝ REŽIM (FALLBACK): Ak stanica pošle nuly pri tlaku a vlhkosti (výpadok senzorov)
 if p_val == 0.0 and h_val == 0.0:
   is_fallback = True
   if current_api_data:
@@ -561,14 +583,13 @@ if t_val <= 10.0 and chill_val != 0:
 elif t_val >= 25.0 and heat_val != 0:
   pocitova_val = heat_val
 else:
-  if heat_val != 0 and heat_val != t_val:
-    pocitova_val = heat_val
-  elif chill_val != 0 and chill_val != t_val:
-    pocitova_val = chill_val
-  else:
-    pocitova_val = t_val
+  pocitova_val = (
+      heat_val
+      if (heat_val != 0 and heat_val != t_val)
+      else (chill_val if (chill_val != 0 and chill_val != t_val) else t_val)
+  )
 
-# --- HLAVNÉ ZÁLOŽKY (TABS) ---
+# --- HLAVNÉ ZÁLOŽKY ---
 tab_aktualne, tab_radar, tab_historia = st.tabs([
     "🌤️ Aktuálne počasie & Predpoveď",
     "📡 Živý zrážkový radar",
@@ -579,9 +600,7 @@ with tab_aktualne:
   if datum_str or cas_str:
     st.caption(f"📅 Posledná aktualizácia zo stanice: {datum_str} o {cas_str}")
 
-  # --- AUTOMATICKÉ METEO VÝSTRAHY (BANNER) ---
   active_warnings = []
-
   if is_fallback:
     active_warnings.append({
         "title": "Dočasný výpadok dát zo stanice",
@@ -593,7 +612,6 @@ with tab_aktualne:
         "color": "linear-gradient(135deg, #f39c12, #d35400)",
         "icon": "📡",
     })
-
   if t_val <= 3.0 and not (is_fallback and t_val == 0.0):
     active_warnings.append({
         "title": "Pozor: Hrozí prízemný mráz!",
@@ -632,23 +650,21 @@ with tab_aktualne:
         "icon": "💨",
     })
 
-  if active_warnings:
-    for alert in active_warnings:
-      st.markdown(
-          f"""
-                <div class="meteo-alert-banner" style="background: {alert['color']};">
-                    <div class="alert-icon">{alert['icon']}</div>
-                    <div>
-                        <div class="alert-title">⚠️ {alert['title']}</div>
-                        <div class="alert-desc">{alert['desc']}</div>
-                    </div>
+  for alert in active_warnings:
+    st.markdown(
+        f"""
+            <div class="meteo-alert-banner" style="background: {alert['color']};">
+                <div class="alert-icon">{alert['icon']}</div>
+                <div>
+                    <div class="alert-title">⚠️ {alert['title']}</div>
+                    <div class="alert-desc">{alert['desc']}</div>
                 </div>
-                """,
-          unsafe_allow_html=True,
-      )
+            </div>
+            """,
+        unsafe_allow_html=True,
+    )
 
   st.subheader("⚡ Aktuálny stav počasia")
-
   st.markdown(
       f"""
         <div style="background-color: var(--secondary-background-color); border-radius: 14px; padding: 20px; box-shadow: 0 6px 16px rgba(0,0,0,0.06); display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
@@ -679,50 +695,26 @@ with tab_aktualne:
   uv_angle = min(135, max(-135, (uv_val / 12) * 270 - 135))
   rain_pct = min(100, max(0, (r_val / 50) * 100))
 
-  if h_val < 30:
-    hum_desc = "Suchý vzduch (pod 30%)"
-  elif h_val <= 60:
-    hum_desc = "Ideálna vlhkosť vzduchu (30% - 60%)"
-  else:
-    hum_desc = "Vysoká vlhkosť / dusno (nad 60%)"
-
-  if p_val < 1000:
-    press_desc = (
-        f"Atmosférický tlak {p_val:.1f} hPa: Nízky tlak (tlaková níž). Prináša"
-        " zhoršené počasie."
-    )
-  elif p_val <= 1025:
-    press_desc = (
-        f"Atmosférický tlak {p_val:.1f} hPa: Normálny / štandardný tlak"
-        " vzduchu."
-    )
-  else:
-    press_desc = (
-        f"Atmosférický tlak {p_val:.1f} hPa: Vysoký tlak (tlaková výš)."
-        " Stabilné počasie."
-    )
-
-  if uv_val < 3:
-    uv_desc = f"UV index {uv_val:.1f}: Nízke riziko."
-  elif uv_val < 6:
-    uv_desc = f"UV index {uv_val:.1f}: Stredné riziko."
-  elif uv_val < 8:
-    uv_desc = f"UV index {uv_val:.1f}: Vysoké riziko!"
-  elif uv_val < 11:
-    uv_desc = f"UV index {uv_val:.1f}: Veľmi vysoké riziko!"
-  else:
-    uv_desc = f"UV index {uv_val:.1f}: Extrémne riziko!"
-
-  if r_val == 0:
-    rain_desc = "Aktuálne bez zrážok"
-  elif r_val < 2.5:
-    rain_desc = "Slabé zrážky / Mrholenie"
-  elif r_val < 10:
-    rain_desc = "Mierne zrážky"
-  elif r_val < 30:
-    rain_desc = "Výdatné zrážky / Dážď"
-  else:
-    rain_desc = "Extrémne zrážky / Prívalový dážď"
+  hum_desc = (
+      "Suchý vzduch (pod 30%)"
+      if h_val < 30
+      else (
+          "Ideálna vlhkosť vzduchu (30% - 60%)"
+          if h_val <= 60
+          else "Vysoká vlhkosť / dusno (nad 60%)"
+      )
+  )
+  press_desc = (
+      f"Atmosférický tlak {p_val:.1f} hPa: Nízky tlak (tlaková níž)."
+      if p_val < 1000
+      else (
+          f"Atmosférický tlak {p_val:.1f} hPa: Normálny / štandardný tlak."
+          if p_val <= 1025
+          else f"Atmosférický tlak {p_val:.1f} hPa: Vysoký tlak (tlaková výš)."
+      )
+  )
+  uv_desc = f"UV index {uv_val:.1f}"
+  rain_desc = f"Úhrn zrážok: {r_val:.1f} mm"
 
   col1, col2, col3, col4, col5, col6 = st.columns(6)
 
@@ -828,7 +820,7 @@ with tab_aktualne:
 
   st.markdown("---")
 
-  # --- HORIZONTÁLNE SCROLOVATEĽNÁ PREDPOVEĎ PO HODINÁCH (24 HODÍN) ---
+  # --- HORIZONTÁLNA PREDPOVEĎ (24H) ---
   st.subheader("⏱️ Podrobná predpoveď po hodinách (najbližších 24h)")
 
   if hourly_api_data and "time" in hourly_api_data:
@@ -840,11 +832,13 @@ with tab_aktualne:
     precips = hourly_api_data.get("precipitation", []) or [0.0] * len(times)
     codes = hourly_api_data.get("weather_code", []) or [0] * len(times)
 
-    now_hour = datetime.datetime.now().strftime("%Y-%m-%dT%H:00")
+    now_hour = datetime.datetime.now(ZoneInfo("Europe/Bratislava")).strftime(
+        "%Y-%m-%dT%H:00"
+    )
 
     start_idx = 0
     for i, t in enumerate(times):
-      if t >= now_hour:
+      if str(t) >= now_hour:
         start_idx = i
         break
 
@@ -859,10 +853,18 @@ with tab_aktualne:
       for t, temp, prob, precip, code in zip(
           times_24, temps_24, probs_24, precips_24, codes_24
       ):
-        time_str = t.split("T")[1][:5]
-        date_str = ".".join(reversed(t.split("T")[0].split("-")[1:])) + "."
+        try:
+          time_str = str(t).split("T")[1][:5]
+          parts = str(t).split("T")[0].split("-")
+          date_str = f"{int(parts[2])}.{int(parts[1])}."
+        except:
+          time_str, date_str = "--:--", "--.--"
+
         h_icon = get_weather_icon(code)
-        p_val_num = float(precip) if precip is not None else 0.0
+        try:
+          p_val_num = float(precip)
+        except:
+          p_val_num = 0.0
 
         if p_val_num > 0:
           precip_html = (
@@ -886,7 +888,7 @@ with tab_aktualne:
             ' style="font-size: 0.6em; font-weight: 600; opacity: 0.5;'
             f' margin-bottom: 2px;">{date_str}</div><div style="font-size:'
             f' 1.4em; margin: 2px 0;">{h_icon}</div><div style="font-size:'
-            f' 1.05em; font-weight: 800;">{temp:.1f}°C</div><div'
+            f' 1.05em; font-weight: 800;">{float(temp):.1f}°C</div><div'
             ' style="font-size: 0.7em; opacity: 0.75; margin-top: 3px;">💧'
             f' {prob}%</div>{precip_html}</div>'
         )
@@ -900,52 +902,51 @@ with tab_aktualne:
 
   st.markdown("---")
 
-  # --- PREDPOVEĎ POČASIA NA 7 DNÍ ---
+  # --- PREDPOVEĎ NA 7 DNÍ ---
   st.subheader("🔮 Predpoveď počasia na najbližšie dni")
   if forecast_data and "time" in forecast_data:
     days = forecast_data.get("time", [])
     t_max_f = forecast_data.get("temperature_2m_max", [])
     t_min_f = forecast_data.get("temperature_2m_min", [])
     rain_f = forecast_data.get("precipitation_sum", [])
-    w_codes = forecast_data.get("weather_code") or forecast_data.get(
-        "weathercode", []
-    )
+    w_codes = forecast_data.get("weather_code", [])
 
     num_days = min(len(days), 7)
-    cols = st.columns(num_days)
+    if num_days > 0:
+      cols = st.columns(num_days)
 
-    sk_dni = {
-        "Monday": "Pondelok",
-        "Tuesday": "Utorok",
-        "Wednesday": "Streda",
-        "Thursday": "Štvrtok",
-        "Friday": "Piatok",
-        "Saturday": "Sobota",
-        "Sunday": "Nedeľa",
-    }
+      sk_dni = {
+          "Monday": "Pondelok",
+          "Tuesday": "Utorok",
+          "Wednesday": "Streda",
+          "Thursday": "Štvrtok",
+          "Friday": "Piatok",
+          "Saturday": "Sobota",
+          "Sunday": "Nedeľa",
+      }
 
-    for i in range(num_days):
-      with cols[i]:
-        date_obj = datetime.datetime.strptime(days[i], "%Y-%m-%d")
-        nazov_dna = sk_dni.get(date_obj.strftime("%A"), "")
-        formatted_date = f"{nazov_dna}<br>{date_obj.day}.{date_obj.month}."
+      for i in range(num_days):
+        with cols[i]:
+          date_obj = datetime.datetime.strptime(days[i], "%Y-%m-%d")
+          nazov_dna = sk_dni.get(date_obj.strftime("%A"), "")
+          formatted_date = f"{nazov_dna}<br>{date_obj.day}.{date_obj.month}."
 
-        code_val = w_codes[i] if i < len(w_codes) else 0
-        icon = get_weather_icon(code_val)
-        st.markdown(
-            f"""
-                    <div class="weather-card">
-                        <div class="card-title" style="height: 45px; line-height: 1.2;">{formatted_date}</div>
-                        <div style="font-size: 1.8em; margin: 4px 0;">{icon}</div>
-                        <div style="font-size: 0.85em; color: #e74c3c; margin: 2px 0;">Max: <b>{t_max_f[i]:.1f}°C</b></div>
-                        <div style="font-size: 0.85em; color: #3498db; margin: 2px 0;">Min: <b>{t_min_f[i]:.1f}°C</b></div>
-                        <div style="font-size: 0.8em; opacity: 0.7; margin-top: 6px;">🌧️ {rain_f[i]:.1f} mm</div>
-                    </div>
-                    """,
-            unsafe_allow_html=True,
-        )
+          code_val = w_codes[i] if i < len(w_codes) else 0
+          icon = get_weather_icon(code_val)
+          st.markdown(
+              f"""
+                        <div class="weather-card">
+                            <div class="card-title" style="height: 45px; line-height: 1.2;">{formatted_date}</div>
+                            <div style="font-size: 1.8em; margin: 4px 0;">{icon}</div>
+                            <div style="font-size: 0.85em; color: #e74c3c; margin: 2px 0;">Max: <b>{float(t_max_f[i]):.1f}°C</b></div>
+                            <div style="font-size: 0.85em; color: #3498db; margin: 2px 0;">Min: <b>{float(t_min_f[i]):.1f}°C</b></div>
+                            <div style="font-size: 0.8em; opacity: 0.7; margin-top: 6px;">🌧️ {float(rain_f[i]):.1f} mm</div>
+                        </div>
+                        """,
+              unsafe_allow_html=True,
+          )
 
-# --- ZÁLOŽKA: ŽIVÝ ZRÁŽKOVÝ RADAR A PREDPOVEĎ ---
+# --- ZÁLOŽKA: ŽIVÝ ZRÁŽKOVÝ RADAR ---
 with tab_radar:
   st.subheader("📡 Živý zrážkový radar a krátkodobá predpoveď")
   st.caption(
@@ -1154,7 +1155,7 @@ with tab_historia:
 
     st.markdown("---")
 
-    # --- 2. ŠTATISTIKY A EXTRÉMY ZA VYBRANÉ OBDOBIE ---
+    # --- 2. ŠTATISTIKY ZA OBDOBIE ---
     st.subheader("📊 Štatistiky a vývoj za vybrané obdobie")
 
     if not df_filtered.empty:
