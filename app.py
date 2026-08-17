@@ -1,5 +1,6 @@
 import datetime
 import os
+from zoneinfo import ZoneInfo
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -12,13 +13,13 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(
     page_title="Meteo Web Dashboard - Pusté Pole",
     page_icon="🌤️",
-    layout="wide"
+    layout="wide",
 )
 
 # Vynútenie načítania čerstvých dát hneď pri prvom otvorení aplikácie
 if "initialized" not in st.session_state:
-    st.session_state.initialized = True
-    st.rerun()
+  st.session_state.initialized = True
+  st.rerun()
 
 # Automatické obnovenie stránky každých 5 minút (300 000 ms)
 count = st_autorefresh(interval=300000, limit=None, key="meteo_autorefresh")
@@ -257,177 +258,194 @@ st.markdown(
 # --- KONŠTANTY A SÚBORY ---
 CSV_FILE = "meteo_puste_pole_v2.csv"
 CSV_AKTUALNE = "meteo_aktualne.csv"
-# Presné súradnice Pustého Poľa (medzi Plavčom a Kyjovom)
 LAT, LON = 49.215, 20.900
+
 
 # --- POMOCNÉ FUNKCIE ---
 def deg_to_cardinal(deg):
-    if pd.isna(deg) or deg == "-" or deg == "":
-        return "-"
-    deg_str = (
-        str(deg)
-        .replace("°", "")
-        .replace("º", "")
-        .replace("deg", "")
-        .strip()
-    )
-    try:
-        d = float(deg_str)
-    except ValueError:
-        return str(deg).upper()
-    d = d % 360
-    if 348.75 <= d or d < 11.25:
-        return "Sever"
-    elif 11.25 <= d < 33.75:
-        return "Severo-severovýchod"
-    elif 33.75 <= d < 56.25:
-        return "Severovýchod"
-    elif 56.25 <= d < 78.75:
-        return "Východo-severovýchod"
-    elif 78.75 <= d < 101.25:
-        return "Východ"
-    elif 101.25 <= d < 123.75:
-        return "Východo-juhovýchod"
-    elif 123.75 <= d < 146.25:
-        return "Juhovýchod"
-    elif 146.25 <= d < 168.75:
-        return "Juho-juhovýchod"
-    elif 168.75 <= d < 191.25:
-        return "Juh"
-    elif 191.25 <= d < 213.75:
-        return "Juho-juhozápad"
-    elif 213.75 <= d < 236.25:
-        return "Juhozápad"
-    elif 236.25 <= d < 258.75:
-        return "Západno-juhozápad"
-    elif 258.75 <= d < 281.25:
-        return "Západ"
-    elif 281.25 <= d < 303.75:
-        return "Západno-severozápad"
-    elif 303.75 <= d < 326.25:
-        return "Severozápad"
-    elif 326.25 <= d < 348.75:
-        return "Severo-severozápad"
+  if pd.isna(deg) or deg == "-" or deg == "":
+    return "-"
+  deg_str = (
+      str(deg)
+      .replace("°", "")
+      .replace("º", "")
+      .replace("deg", "")
+      .strip()
+  )
+  try:
+    d = float(deg_str)
+  except ValueError:
+    return str(deg).upper()
+  d = d % 360
+  if 348.75 <= d or d < 11.25:
     return "Sever"
+  elif 11.25 <= d < 33.75:
+    return "Severo-severovýchod"
+  elif 33.75 <= d < 56.25:
+    return "Severovýchod"
+  elif 56.25 <= d < 78.75:
+    return "Východo-severovýchod"
+  elif 78.75 <= d < 101.25:
+    return "Východ"
+  elif 101.25 <= d < 123.75:
+    return "Východo-juhovýchod"
+  elif 123.75 <= d < 146.25:
+    return "Juhovýchod"
+  elif 146.25 <= d < 168.75:
+    return "Juho-juhovýchod"
+  elif 168.75 <= d < 191.25:
+    return "Juh"
+  elif 191.25 <= d < 213.75:
+    return "Juho-juhozápad"
+  elif 213.75 <= d < 236.25:
+    return "Juhozápad"
+  elif 236.25 <= d < 258.75:
+    return "Západno-juhozápad"
+  elif 258.75 <= d < 281.25:
+    return "Západ"
+  elif 281.25 <= d < 303.75:
+    return "Západno-severozápad"
+  elif 303.75 <= d < 326.25:
+    return "Severozápad"
+  elif 326.25 <= d < 348.75:
+    return "Severo-severozápad"
+  return "Sever"
+
 
 @st.cache_data(ttl=600)
 def load_data():
-    if not os.path.exists(CSV_FILE):
-        return None
+  if not os.path.exists(CSV_FILE):
+    return None
+  try:
+    df = pd.read_csv(
+        CSV_FILE, sep=";", decimal=",", on_bad_lines="skip", engine="python"
+    )
+  except Exception:
     try:
-        df = pd.read_csv(
-            CSV_FILE, sep=";", decimal=",", on_bad_lines="skip", engine="python"
-        )
+      df = pd.read_csv(
+          CSV_FILE, sep=",", decimal=".", on_bad_lines="skip", engine="python"
+      )
     except Exception:
-        try:
-            df = pd.read_csv(
-                CSV_FILE, sep=",", decimal=".", on_bad_lines="skip", engine="python"
-            )
-        except Exception:
-            return None
+      return None
 
-    col_datum = next(
-        (c for c in df.columns if "dátum" in c.lower() or "datum" in c.lower()),
-        None,
-    )
-    col_cas = next(
-        (c for c in df.columns if "čas" in c.lower() or "cas" in c.lower()), None
-    )
-    if not col_datum or not col_cas:
-        return df
-
-    df["DateTime"] = pd.to_datetime(
-        df[col_datum].astype(str) + " " + df[col_cas].astype(str),
-        dayfirst=True,
-        errors="coerce",
-    )
-    df = df.dropna(subset=["DateTime"]).sort_values("DateTime")
-    for col in df.columns:
-        if col not in [col_datum, col_cas, "DateTime", "Smer vetra"]:
-            df[col] = pd.to_numeric(
-                df[col].astype(str).str.replace(",", "."), errors="coerce"
-            )
+  col_datum = next(
+      (c for c in df.columns if "dátum" in c.lower() or "datum" in c.lower()),
+      None,
+  )
+  col_cas = next(
+      (c for c in df.columns if "čas" in c.lower() or "cas" in c.lower()), None
+  )
+  if not col_datum or not col_cas:
     return df
 
-@st.cache_data(ttl=1800)
+  # Filtrovanie prednostne na večerný celodenný zber (23:57)
+  df["Cas_clean"] = df[col_cas].astype(str).str.strip()
+  df["is_night"] = df["Cas_clean"].str.startswith("23:5")
+
+  df["DateTime"] = pd.to_datetime(
+      df[col_datum].astype(str) + " " + df[col_cas].astype(str),
+      dayfirst=True,
+      errors="coerce",
+  )
+  df = df.dropna(subset=["DateTime"])
+
+  # Zoradíme tak, aby záznam o 23:57 bol pre daný deň na konci a ponecháme ho
+  df = df.sort_values(by=[col_datum, "is_night", "DateTime"])
+  df = df.drop_duplicates(subset=[col_datum], keep="last")
+  df = df.sort_values("DateTime").drop(columns=["Cas_clean", "is_night"])
+
+  for col in df.columns:
+    if col not in [col_datum, col_cas, "DateTime", "Smer vetra"]:
+      df[col] = pd.to_numeric(
+          df[col].astype(str).str.replace(",", "."), errors="coerce"
+      )
+  return df
+
+
+@st.cache_data(ttl=900)
 def fetch_weather_api_data(lat, lon):
-    url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode,sunrise,sunset&forecast_days=7&timezone=Europe/Bratislava"
-    try:
-        response = requests.get(url)
-        data = response.json()
-        return (
-            data.get("current", None),
-            data.get("daily", None),
-            data.get("hourly", None),
-        )
-    except Exception:
-        return None, None, None
+  url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code,sunrise,sunset&forecast_days=7&timezone=Europe%2FBratislava"
+  try:
+    response = requests.get(url, timeout=10)
+    if response.status_code == 200:
+      data = response.json()
+      return (
+          data.get("current", None),
+          data.get("daily", None),
+          data.get("hourly", None),
+      )
+  except Exception as e:
+    print(f"Chyba Open-Meteo: {e}")
+  return None, None, None
+
 
 def get_weather_icon(code):
-    if code == 0:
-        return "☀️"
-    elif code in [1, 2]:
-        return "⛅"
-    elif code == 3:
-        return "☁️"
-    elif code in [45, 48]:
-        return "🌫️"
-    elif code in [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82]:
-        return "🌧️"
-    elif code in [71, 73, 75, 77, 85, 86]:
-        return "❄️"
-    elif code in [95, 96, 99]:
-        return "⛈️"
-    else:
-        return "🌤️"
+  if code == 0:
+    return "☀️"
+  elif code in [1, 2]:
+    return "⛅"
+  elif code == 3:
+    return "☁️"
+  elif code in [45, 48]:
+    return "🌫️"
+  elif code in [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82]:
+    return "🌧️"
+  elif code in [71, 73, 75, 77, 85, 86]:
+    return "❄️"
+  elif code in [95, 96, 99]:
+    return "⛈️"
+  else:
+    return "🌤️"
+
 
 def get_weather_description(code):
-    if code == 0:
-        return "Jasno"
-    elif code in [1, 2]:
-        return "Polooblačno"
-    elif code == 3:
-        return "Oblačno"
-    elif code in [45, 48]:
-        return "Hmla"
-    elif code in [51, 53, 55, 56, 57]:
-        return "Mrholenie"
-    elif code in [61, 63, 65, 66, 67]:
-        return "Dážď"
-    elif code in [71, 73, 75, 77]:
-        return "Sneh"
-    elif code in [80, 81, 82]:
-        return "Prehánky"
-    elif code in [85, 86]:
-        return "Snehové prehánky"
-    elif code in [95, 96, 99]:
-        return "Búrka"
-    else:
-        return "Oblačno"
+  if code == 0:
+    return "Jasno"
+  elif code in [1, 2]:
+    return "Polooblačno"
+  elif code == 3:
+    return "Oblačno"
+  elif code in [45, 48]:
+    return "Hmla"
+  elif code in [51, 53, 55, 56, 57]:
+    return "Mrholenie"
+  elif code in [61, 63, 65, 66, 67]:
+    return "Dážď"
+  elif code in [71, 73, 75, 77]:
+    return "Sneh"
+  elif code in [80, 81, 82]:
+    return "Prehánky"
+  elif code in [85, 86]:
+    return "Snehové prehánky"
+  elif code in [95, 96, 99]:
+    return "Búrka"
+  else:
+    return "Oblačno"
+
 
 def get_moon_phase_info():
-    today = datetime.date.today()
-    known_new_moon = datetime.date(2000, 1, 6)
-    diff = (today - known_new_moon).days
-    synodic_month = 29.5305877057
-    phase = (diff % synodic_month) / synodic_month
+  today = datetime.date.today()
+  known_new_moon = datetime.date(2000, 1, 6)
+  diff = (today - known_new_moon).days
+  synodic_month = 29.5305877057
+  phase = (diff % synodic_month) / synodic_month
 
-    if phase < 0.03 or phase > 0.97:
-        return "🌑 Nov"
-    elif phase < 0.22:
-        return "🌒 Dorastajúci kosák"
-    elif phase < 0.28:
-        return "🌓 Prvá štvrť"
-    elif phase < 0.47:
-        return "🌔 Dorastajúci Mesiac"
-    elif phase < 0.53:
-        return "🌕 Spln"
-    elif phase < 0.72:
-        return "🌖 Ubúdajúci Mesiac"
-    elif phase < 0.78:
-        return "🌗 Posledná štvrť"
-    else:
-        return "🌘 Ubúdajúci kosák"
+  if phase < 0.03 or phase > 0.97:
+    return "🌑 Nov"
+  elif phase < 0.22:
+    return "🌒 Dorastajúci kosák"
+  elif phase < 0.28:
+    return "🌓 Prvá štvrť"
+  elif phase < 0.47:
+    return "🌔 Dorastajúci Mesiac"
+  elif phase < 0.53:
+    return "🌕 Spln"
+  elif phase < 0.72:
+    return "🌖 Ubúdajúci Mesiac"
+  elif phase < 0.78:
+    return "🌗 Posledná štvrť"
+  else:
+    return "🌘 Ubúdajúci kosák"
 
 
 # --- HLAVIČKA A INFO O STANICI ---
@@ -443,162 +461,181 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-current_api_data, forecast_data, hourly_api_data = fetch_weather_api_data(LAT, LON)
-curr_code = (
-    current_api_data.get("weather_code", 0) if current_api_data else 0
+current_api_data, forecast_data, hourly_api_data = fetch_weather_api_data(
+    LAT, LON
 )
+curr_code = current_api_data.get("weather_code", 0) if current_api_data else 0
 curr_icon = get_weather_icon(curr_code)
 curr_desc = get_weather_description(curr_code)
 
 sunrise_str, sunset_str = "--:--", "--:--"
 if forecast_data and "sunrise" in forecast_data and "sunset" in forecast_data:
-    try:
-        sunrise_str = forecast_data["sunrise"][0].split("T")[1]
-        sunset_str = forecast_data["sunset"][0].split("T")[1]
-    except:
-        pass
+  try:
+    sunrise_str = forecast_data["sunrise"][0].split("T")[1]
+    sunset_str = forecast_data["sunset"][0].split("T")[1]
+  except:
+    pass
 moon_phase_str = get_moon_phase_info()
 
 # Načítanie aktuálnych dát zo súboru
 t_val, chill_val, heat_val, dew_val, h_val, p_val, w_val, r_val, uv_val = (
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
 )
 w_cardinal = "-"
 datum_str, cas_str = "", ""
 is_fallback = False
 
 if os.path.exists(CSV_AKTUALNE):
+  try:
     try:
-        try:
-            df_akt = pd.read_csv(
-                CSV_AKTUALNE, sep=";", decimal=",", on_bad_lines="skip"
-            )
-        except:
-            df_akt = pd.read_csv(
-                CSV_AKTUALNE, sep=",", decimal=".", on_bad_lines="skip"
-            )
+      df_akt = pd.read_csv(
+          CSV_AKTUALNE, sep=";", decimal=",", on_bad_lines="skip"
+      )
+    except:
+      df_akt = pd.read_csv(
+          CSV_AKTUALNE, sep=",", decimal=".", on_bad_lines="skip"
+      )
 
-        if not df_akt.empty:
-            akt = df_akt.iloc[0]
-            datum_str = akt.get("Dátum", akt.get("datum", ""))
-            cas_str = akt.get("Čas", akt.get("cas", ""))
+    if not df_akt.empty:
+      akt = df_akt.iloc[0]
+      datum_str = akt.get("Dátum", akt.get("datum", ""))
+      cas_str = akt.get("Čas", akt.get("cas", ""))
 
-            def get_val(df_row, keywords):
-                for k in keywords:
-                    for col in df_row.index:
-                        if k.lower() in col.lower():
-                            val = df_row[col]
-                            try:
-                                return float(str(val).replace(",", "."))
-                            except:
-                                return val
-                return 0.0
+      def get_val(df_row, keywords):
+        for k in keywords:
+          for col in df_row.index:
+            if k.lower() in col.lower():
+              val = df_row[col]
+              try:
+                return float(str(val).replace(",", "."))
+              except:
+                return val
+        return 0.0
 
-            def get_str_val(df_row, keywords):
-                for k in keywords:
-                    for col in df_row.index:
-                        if k.lower() in col.lower():
-                            return str(df_row[col])
-                return "-"
+      def get_str_val(df_row, keywords):
+        for k in keywords:
+          for col in df_row.index:
+            if k.lower() in col.lower():
+              return str(df_row[col])
+        return "-"
 
-            t_val = get_val(akt, ["teplota", "temp"])
-            chill_val = get_val(akt, ["chill", "wind chill"])
-            heat_val = get_val(akt, ["heat", "heat index"])
-            dew_val = get_val(akt, ["dew", "rosný"])
-            h_val = get_val(akt, ["vlhkosť", "vlhkost", "hum"])
-            p_val = get_val(akt, ["tlak", "bar", "pressure"])
-            w_val = get_val(akt, ["vietor", "wind", "wspd"])
-            w_dir_raw = get_str_val(akt, ["smer", "wdir"])
-            r_val = get_val(akt, ["zrážky", "zrazky", "rain"])
-            uv_val = get_val(akt, ["uv", "uvi"])
-            w_cardinal = deg_to_cardinal(w_dir_raw)
-    except Exception as e:
-        st.error(f"Chyba pri spracovaní aktuálnych dát: {e}")
+      t_val = get_val(akt, ["teplota", "temp"])
+      chill_val = get_val(akt, ["chill", "wind chill"])
+      heat_val = get_val(akt, ["heat", "heat index"])
+      dew_val = get_val(akt, ["dew", "rosný"])
+      h_val = get_val(akt, ["vlhkosť", "vlhkost", "hum"])
+      p_val = get_val(akt, ["tlak", "bar", "pressure"])
+      w_val = get_val(akt, ["vietor", "wind", "wspd"])
+      w_dir_raw = get_str_val(akt, ["smer", "wdir"])
+      r_val = get_val(akt, ["zrážky", "zrazky", "rain"])
+      uv_val = get_val(akt, ["uv", "uvi"])
+      w_cardinal = deg_to_cardinal(w_dir_raw)
+  except Exception as e:
+    st.error(f"Chyba pri spracovaní aktuálnych dát: {e}")
 
 # ZÁCHRANNÝ REŽIM (FALLBACK): Ak stanica pošle nuly pri tlaku a vlhkosti (výpadok senzorov)
 if p_val == 0.0 and h_val == 0.0:
-    is_fallback = True
-    if current_api_data:
-        t_val = current_api_data.get("temperature_2m", 0.0)
-        h_val = current_api_data.get("relative_humidity_2m", 50.0)
-        w_val = current_api_data.get("wind_speed_10m", 0.0)
-        r_val = current_api_data.get("precipitation", 0.0)
-        p_val = 1013.0
-        uv_val = 0.0
-        chill_val = t_val
-        heat_val = t_val
-        dew_val = t_val
-        w_cardinal = "Model"
+  is_fallback = True
+  if current_api_data:
+    t_val = current_api_data.get("temperature_2m", 0.0)
+    h_val = current_api_data.get("relative_humidity_2m", 50.0)
+    w_val = current_api_data.get("wind_speed_10m", 0.0)
+    r_val = current_api_data.get("precipitation", 0.0)
+    p_val = 1013.0
+    uv_val = 0.0
+    chill_val = t_val
+    heat_val = t_val
+    dew_val = t_val
+    w_cardinal = "Model"
 
 if t_val <= 10.0 and chill_val != 0:
-    pocitova_val = chill_val
+  pocitova_val = chill_val
 elif t_val >= 25.0 and heat_val != 0:
-    pocitova_val = heat_val
+  pocitova_val = heat_val
 else:
-    if heat_val != 0 and heat_val != t_val:
-        pocitova_val = heat_val
-    elif chill_val != 0 and chill_val != t_val:
-        pocitova_val = chill_val
-    else:
-        pocitova_val = t_val
+  if heat_val != 0 and heat_val != t_val:
+    pocitova_val = heat_val
+  elif chill_val != 0 and chill_val != t_val:
+    pocitova_val = chill_val
+  else:
+    pocitova_val = t_val
 
 # --- HLAVNÉ ZÁLOŽKY (TABS) ---
-tab_aktualne, tab_radar, tab_historia = st.tabs(
-    [
-        "🌤️ Aktuálne počasie & Predpoveď",
-        "📡 Živý zrážkový radar",
-        "📊 História & Rekordy stanice",
-    ]
-)
+tab_aktualne, tab_radar, tab_historia = st.tabs([
+    "🌤️ Aktuálne počasie & Predpoveď",
+    "📡 Živý zrážkový radar",
+    "📊 História & Rekordy stanice",
+])
 
 with tab_aktualne:
-    if datum_str or cas_str:
-        st.caption(f"📅 Posledná aktualizácia zo stanice: {datum_str} o {cas_str}")
+  if datum_str or cas_str:
+    st.caption(f"📅 Posledná aktualizácia zo stanice: {datum_str} o {cas_str}")
 
-    # --- AUTOMATICKÉ METEO VÝSTRAHY (BANNER) ---
-    active_warnings = []
-    
-    if is_fallback:
-        active_warnings.append({
-            "title": "Dočasný výpadok dát zo stanice",
-            "desc": "Lokálna stanica momentálne odoslala prázdne/chybné údaje. Budíky aktuálne zobrazujú záložné dáta z online meteorologického modelu.",
-            "color": "linear-gradient(135deg, #f39c12, #d35400)",
-            "icon": "📡",
-        })
+  # --- AUTOMATICKÉ METEO VÝSTRAHY (BANNER) ---
+  active_warnings = []
 
-    if t_val <= 3.0 and not (is_fallback and t_val == 0.0):
-        active_warnings.append({
-            "title": "Pozor: Hrozí prízemný mráz!",
-            "desc": f"Teplota klesla na {t_val:.1f} °C. Hrozí riziko poškodenia vegetácie.",
-            "color": "linear-gradient(135deg, #2980b9, #2c3e50)",
-            "icon": "❄️",
-        })
-    if curr_code in [95, 96, 99]:
-        active_warnings.append({
-            "title": "Výstraha pred búrkou!",
-            "desc": "V oblasti je detekovaná búrková činnosť. Zvýšte opatrnosť.",
-            "color": "linear-gradient(135deg, #c0392b, #e74c3c)",
-            "icon": "⚡",
-        })
-    if uv_val >= 8.0:
-        active_warnings.append({
-            "title": "Extrémny UV index!",
-            "desc": f"Aktuálna hodnota UV indexu je {uv_val:.1f}. Obmedzte pobyt na slnku bez ochrany.",
-            "color": "linear-gradient(135deg, #d35400, #e67e22)",
-            "icon": "☀️",
-        })
-    if w_val >= 45.0:
-        active_warnings.append({
-            "title": "Výstraha: Silný vietor!",
-            "desc": f"Rýchlosť vetra dosahuje {w_val:.1f} km/h. Hrozí riziko pádov predmetov.",
-            "color": "linear-gradient(135deg, #7f8c8d, #34495e)",
-            "icon": "💨",
-        })
+  if is_fallback:
+    active_warnings.append({
+        "title": "Dočasný výpadok dát zo stanice",
+        "desc": (
+            "Lokálna stanica momentálne odoslala prázdne/chybné údaje. Budíky"
+            " aktuálne zobrazujú záložné dáta z online meteorologického"
+            " modelu."
+        ),
+        "color": "linear-gradient(135deg, #f39c12, #d35400)",
+        "icon": "📡",
+    })
 
-    if active_warnings:
-        for alert in active_warnings:
-            st.markdown(
-                f"""
+  if t_val <= 3.0 and not (is_fallback and t_val == 0.0):
+    active_warnings.append({
+        "title": "Pozor: Hrozí prízemný mráz!",
+        "desc": (
+            f"Teplota klesla na {t_val:.1f} °C. Hrozí riziko poškodenia"
+            " vegetácie."
+        ),
+        "color": "linear-gradient(135deg, #2980b9, #2c3e50)",
+        "icon": "❄️",
+    })
+  if curr_code in [95, 96, 99]:
+    active_warnings.append({
+        "title": "Výstraha pred búrkou!",
+        "desc": "V oblasti je detekovaná búrková činnosť. Zvýšte opatrnosť.",
+        "color": "linear-gradient(135deg, #c0392b, #e74c3c)",
+        "icon": "⚡",
+    })
+  if uv_val >= 8.0:
+    active_warnings.append({
+        "title": "Extrémny UV index!",
+        "desc": (
+            f"Aktuálna hodnota UV indexu je {uv_val:.1f}. Obmedzte pobyt na"
+            " slnku bez ochrany."
+        ),
+        "color": "linear-gradient(135deg, #d35400, #e67e22)",
+        "icon": "☀️",
+    })
+  if w_val >= 45.0:
+    active_warnings.append({
+        "title": "Výstraha: Silný vietor!",
+        "desc": (
+            f"Rýchlosť vetra dosahuje {w_val:.1f} km/h. Hrozí riziko pádov"
+            " predmetov."
+        ),
+        "color": "linear-gradient(135deg, #7f8c8d, #34495e)",
+        "icon": "💨",
+    })
+
+  if active_warnings:
+    for alert in active_warnings:
+      st.markdown(
+          f"""
                 <div class="meteo-alert-banner" style="background: {alert['color']};">
                     <div class="alert-icon">{alert['icon']}</div>
                     <div>
@@ -607,13 +644,13 @@ with tab_aktualne:
                     </div>
                 </div>
                 """,
-                unsafe_allow_html=True,
-            )
+          unsafe_allow_html=True,
+      )
 
-    st.subheader("⚡ Aktuálny stav počasia")
+  st.subheader("⚡ Aktuálny stav počasia")
 
-    st.markdown(
-        f"""
+  st.markdown(
+      f"""
         <div style="background-color: var(--secondary-background-color); border-radius: 14px; padding: 20px; box-shadow: 0 6px 16px rgba(0,0,0,0.06); display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
             <div style="display: flex; align-items: center; gap: 20px;">
                 <div style="font-size: 3.5em;">{curr_icon}</div>
@@ -632,57 +669,66 @@ with tab_aktualne:
             </div>
         </div>
         """,
-        unsafe_allow_html=True,
+      unsafe_allow_html=True,
+  )
+
+  temp_pct = min(100, max(0, ((t_val + 20) / 70) * 100))
+  press_pct = min(100, max(0, ((p_val - 950) / (1050 - 950)) * 100))
+  hum_angle = (h_val / 100) * 270 - 135
+  wind_angle = min(135, max(-135, (w_val / 50) * 270 - 135))
+  uv_angle = min(135, max(-135, (uv_val / 12) * 270 - 135))
+  rain_pct = min(100, max(0, (r_val / 50) * 100))
+
+  if h_val < 30:
+    hum_desc = "Suchý vzduch (pod 30%)"
+  elif h_val <= 60:
+    hum_desc = "Ideálna vlhkosť vzduchu (30% - 60%)"
+  else:
+    hum_desc = "Vysoká vlhkosť / dusno (nad 60%)"
+
+  if p_val < 1000:
+    press_desc = (
+        f"Atmosférický tlak {p_val:.1f} hPa: Nízky tlak (tlaková níž). Prináša"
+        " zhoršené počasie."
+    )
+  elif p_val <= 1025:
+    press_desc = (
+        f"Atmosférický tlak {p_val:.1f} hPa: Normálny / štandardný tlak"
+        " vzduchu."
+    )
+  else:
+    press_desc = (
+        f"Atmosférický tlak {p_val:.1f} hPa: Vysoký tlak (tlaková výš)."
+        " Stabilné počasie."
     )
 
-    temp_pct = min(100, max(0, ((t_val + 20) / 70) * 100))
-    press_pct = min(100, max(0, ((p_val - 950) / (1050 - 950)) * 100))
-    hum_angle = (h_val / 100) * 270 - 135
-    wind_angle = min(135, max(-135, (w_val / 50) * 270 - 135))
-    uv_angle = min(135, max(-135, (uv_val / 12) * 270 - 135))
-    rain_pct = min(100, max(0, (r_val / 50) * 100))
+  if uv_val < 3:
+    uv_desc = f"UV index {uv_val:.1f}: Nízke riziko."
+  elif uv_val < 6:
+    uv_desc = f"UV index {uv_val:.1f}: Stredné riziko."
+  elif uv_val < 8:
+    uv_desc = f"UV index {uv_val:.1f}: Vysoké riziko!"
+  elif uv_val < 11:
+    uv_desc = f"UV index {uv_val:.1f}: Veľmi vysoké riziko!"
+  else:
+    uv_desc = f"UV index {uv_val:.1f}: Extrémne riziko!"
 
-    if h_val < 30:
-        hum_desc = "Suchý vzduch (pod 30%)"
-    elif h_val <= 60:
-        hum_desc = "Ideálna vlhkosť vzduchu (30% - 60%)"
-    else:
-        hum_desc = "Vysoká vlhkosť / dusno (nad 60%)"
+  if r_val == 0:
+    rain_desc = "Aktuálne bez zrážok"
+  elif r_val < 2.5:
+    rain_desc = "Slabé zrážky / Mrholenie"
+  elif r_val < 10:
+    rain_desc = "Mierne zrážky"
+  elif r_val < 30:
+    rain_desc = "Výdatné zrážky / Dážď"
+  else:
+    rain_desc = "Extrémne zrážky / Prívalový dážď"
 
-    if p_val < 1000:
-        press_desc = f"Atmosférický tlak {p_val:.1f} hPa: Nízky tlak (tlaková níž). Prináša zhoršené počasie."
-    elif p_val <= 1025:
-        press_desc = f"Atmosférický tlak {p_val:.1f} hPa: Normálny / štandardný tlak vzduchu."
-    else:
-        press_desc = f"Atmosférický tlak {p_val:.1f} hPa: Vysoký tlak (tlaková výš). Stabilné počasie."
+  col1, col2, col3, col4, col5, col6 = st.columns(6)
 
-    if uv_val < 3:
-        uv_desc = f"UV index {uv_val:.1f}: Nízke riziko."
-    elif uv_val < 6:
-        uv_desc = f"UV index {uv_val:.1f}: Stredné riziko."
-    elif uv_val < 8:
-        uv_desc = f"UV index {uv_val:.1f}: Vysoké riziko!"
-    elif uv_val < 11:
-        uv_desc = f"UV index {uv_val:.1f}: Veľmi vysoké riziko!"
-    else:
-        uv_desc = f"UV index {uv_val:.1f}: Extrémne riziko!"
-        
-    if r_val == 0:
-        rain_desc = "Aktuálne bez zrážok"
-    elif r_val < 2.5:
-        rain_desc = "Slabé zrážky / Mrholenie"
-    elif r_val < 10:
-        rain_desc = "Mierne zrážky"
-    elif r_val < 30:
-        rain_desc = "Výdatné zrážky / Dážď"
-    else:
-        rain_desc = "Extrémne zrážky / Prívalový dážď"
-
-    col1, col2, col3, col4, col5, col6 = st.columns(6)
-    
-    with col1:
-        st.markdown(
-            f"""
+  with col1:
+    st.markdown(
+        f"""
             <div class="weather-card">
                 <div class="card-title">Teplota</div>
                 <div class="bar-container">
@@ -693,11 +739,11 @@ with tab_aktualne:
                 <div class="sub-value">Pocitová: {pocitova_val:.1f} °C</div>
             </div>
             """,
-            unsafe_allow_html=True,
-        )
-    with col2:
-        st.markdown(
-            f"""
+        unsafe_allow_html=True,
+    )
+  with col2:
+    st.markdown(
+        f"""
             <div class="weather-card">
                 <div class="card-title">Vlhkosť vzduchu</div>
                 <div class="gauge-circle gauge-hum">
@@ -711,11 +757,11 @@ with tab_aktualne:
                 <div class="sub-value">Rosný bod: {dew_val:.1f} °C</div>
             </div>
             """,
-            unsafe_allow_html=True,
-        )
-    with col3:
-        st.markdown(
-            f"""
+        unsafe_allow_html=True,
+    )
+  with col3:
+    st.markdown(
+        f"""
             <div class="weather-card">
                 <div class="card-title">Atmosférický tlak</div>
                 <div class="bar-container">
@@ -726,11 +772,11 @@ with tab_aktualne:
                 <div class="sub-value">Barometer</div>
             </div>
             """,
-            unsafe_allow_html=True,
-        )
-    with col4:
-        st.markdown(
-            f"""
+        unsafe_allow_html=True,
+    )
+  with col4:
+    st.markdown(
+        f"""
             <div class="weather-card">
                 <div class="card-title">Rýchlosť vetra</div>
                 <div class="gauge-circle gauge-wind">
@@ -744,11 +790,11 @@ with tab_aktualne:
                 <div class="sub-value">Smer: <b>{w_cardinal}</b></div>
             </div>
             """,
-            unsafe_allow_html=True,
-        )
-    with col5:
-        st.markdown(
-            f"""
+        unsafe_allow_html=True,
+    )
+  with col5:
+    st.markdown(
+        f"""
             <div class="weather-card">
                 <div class="card-title">UV index</div>
                 <div class="gauge-circle gauge-uv">
@@ -762,11 +808,11 @@ with tab_aktualne:
                 <div class="sub-value">Intenzita žiarenia</div>
             </div>
             """,
-            unsafe_allow_html=True,
-        )
-    with col6:
-        st.markdown(
-            f"""
+        unsafe_allow_html=True,
+    )
+  with col6:
+    st.markdown(
+        f"""
             <div class="weather-card">
                 <div class="card-title">Úhrn zrážok</div>
                 <div class="bar-container">
@@ -777,92 +823,128 @@ with tab_aktualne:
                 <div class="sub-value">Zrážkomer</div>
             </div>
             """,
-            unsafe_allow_html=True,
+        unsafe_allow_html=True,
+    )
+
+  st.markdown("---")
+
+  # --- HORIZONTÁLNE SCROLOVATEĽNÁ PREDPOVEĎ PO HODINÁCH (24 HODÍN) ---
+  st.subheader("⏱️ Podrobná predpoveď po hodinách (najbližších 24h)")
+
+  if hourly_api_data and "time" in hourly_api_data:
+    times = hourly_api_data.get("time", [])
+    temps = hourly_api_data.get("temperature_2m", [])
+    probs = hourly_api_data.get("precipitation_probability", [])
+    precips = hourly_api_data.get("precipitation", [])
+    codes = hourly_api_data.get("weather_code", [])
+
+    now_str = datetime.datetime.now(ZoneInfo("Europe/Bratislava")).strftime(
+        "%Y-%m-%dT%H:00"
+    )
+
+    start_idx = 0
+    for idx, t in enumerate(times):
+      if t >= now_str:
+        start_idx = idx
+        break
+
+    times_24 = times[start_idx : start_idx + 24]
+    temps_24 = temps[start_idx : start_idx + 24]
+    probs_24 = (
+        probs[start_idx : start_idx + 24] if probs else [0] * len(times_24)
+    )
+    precips_24 = (
+        precips[start_idx : start_idx + 24] if precips else [0.0] * len(times_24)
+    )
+    codes_24 = (
+        codes[start_idx : start_idx + 24] if codes else [0] * len(times_24)
+    )
+
+    if times_24:
+      cards_html = '<div class="scroll-container">'
+      for t, temp, prob, precip, code in zip(
+          times_24, temps_24, probs_24, precips_24, codes_24
+      ):
+        dt_obj = datetime.datetime.fromisoformat(t)
+        time_str = dt_obj.strftime("%H:%M")
+        date_str = dt_obj.strftime("%d.%m.")
+        h_icon = get_weather_icon(code)
+
+        try:
+          p_val_num = float(precip)
+        except:
+          p_val_num = 0.0
+
+        if p_val_num > 0:
+          precip_html = (
+              '<div style="font-size: 0.65em; color: #3498db; font-weight: 800;'
+              f' margin-top: 1px;">{p_val_num:.1f} mm</div>'
+          )
+        elif prob >= 10:
+          precip_html = (
+              '<div style="font-size: 0.65em; color: #3498db; font-weight: 600;'
+              ' opacity: 0.7; margin-top: 1px;">&lt; 0.1 mm</div>'
+          )
+        else:
+          precip_html = (
+              '<div style="font-size: 0.65em; opacity: 0; margin-top:'
+              ' 1px;">0 mm</div>'
+          )
+
+        cards_html += (
+            f'<div class="mini-hourly-card"><div style="font-size: 0.75em;'
+            f' font-weight: 700; opacity: 0.75;">{time_str}</div><div'
+            ' style="font-size: 0.6em; font-weight: 600; opacity: 0.5;'
+            f' margin-bottom: 2px;">{date_str}</div><div style="font-size:'
+            f' 1.4em; margin: 2px 0;">{h_icon}</div><div style="font-size:'
+            f' 1.05em; font-weight: 800;">{temp:.1f}°C</div><div'
+            ' style="font-size: 0.7em; opacity: 0.75; margin-top: 3px;">💧'
+            f' {prob}%</div>{precip_html}</div>'
         )
 
-    st.markdown("---")
-
-    # --- HORIZONTÁLNE SCROLOVATEĽNÁ PREDPOVEĎ PO HODINÁCH (24 HODÍN) ---
-    st.subheader("⏱️ Podrobná predpoveď po hodinách (najbližších 24h)")
-
-    if hourly_api_data and "time" in hourly_api_data:
-        df_hourly = pd.DataFrame(hourly_api_data)
-        df_hourly["time"] = pd.to_datetime(df_hourly["time"])
-
-        now = (datetime.datetime.utcnow() + datetime.timedelta(hours=2)).replace(minute=0, second=0, microsecond=0)
-        
-        df_next_24h = df_hourly[
-            (df_hourly["time"] >= now) & (df_hourly["time"] <= now + datetime.timedelta(hours=23))
-        ].copy()
-
-        if not df_next_24h.empty:
-            cards_html = '<div class="scroll-container">'
-            
-            for _, row in df_next_24h.iterrows():
-                h_time = row["time"]
-                h_temp = row.get("temperature_2m", 0.0)
-                h_code = row.get("weather_code", 0)
-                h_prob = row.get("precipitation_probability", 0)
-                
-                try:
-                    h_precip = round(float(row.get("precipitation", 0.0)), 1)
-                except:
-                    h_precip = 0.0
-                    
-                h_icon = get_weather_icon(h_code)
-
-                time_str = h_time.strftime("%H:%M")
-                date_str = h_time.strftime("%d.%m.")
-
-                if h_precip > 0:
-                    precip_html = f'<div style="font-size: 0.65em; color: #3498db; font-weight: 800; margin-top: 1px;">{h_precip:.1f} mm</div>'
-                elif h_prob >= 10:
-                    precip_html = f'<div style="font-size: 0.65em; color: #3498db; font-weight: 600; opacity: 0.7; margin-top: 1px;">&lt; 0.1 mm</div>'
-                else:
-                    precip_html = f'<div style="font-size: 0.65em; opacity: 0; margin-top: 1px;">0 mm</div>'
-
-                cards_html += f'<div class="mini-hourly-card"><div style="font-size: 0.75em; font-weight: 700; opacity: 0.75;">{time_str}</div><div style="font-size: 0.6em; font-weight: 600; opacity: 0.5; margin-bottom: 2px;">{date_str}</div><div style="font-size: 1.4em; margin: 2px 0;">{h_icon}</div><div style="font-size: 1.05em; font-weight: 800;">{h_temp:.1f}°C</div><div style="font-size: 0.7em; opacity: 0.75; margin-top: 3px;">💧 {h_prob}%</div>{precip_html}</div>'
-            
-            cards_html += '</div>'
-            st.markdown(cards_html, unsafe_allow_html=True)
-        else:
-            st.info("Žiadne dáta pre najbližších 24 hodín.")
+      cards_html += "</div>"
+      st.markdown(cards_html, unsafe_allow_html=True)
     else:
-        st.info("Podrobné hodinové dáta predpovede nie sú dostupné.")
+      st.info("Žiadne dáta pre najbližších 24 hodín.")
+  else:
+    st.info("Podrobné hodinové dáta predpovede nie sú dostupné.")
 
-    st.markdown("---")
+  st.markdown("---")
 
-    # --- PREDPOVEĎ POČASIA NA 7 DNÍ ---
-    st.subheader("🔮 Predpoveď počasia na najbližšie dni")
-    if forecast_data:
-        days = forecast_data["time"]
-        t_max_f = forecast_data["temperature_2m_max"]
-        t_min_f = forecast_data["temperature_2m_min"]
-        rain_f = forecast_data["precipitation_sum"]
-        w_codes = forecast_data["weathercode"]
+  # --- PREDPOVEĎ POČASIA NA 7 DNÍ ---
+  st.subheader("🔮 Predpoveď počasia na najbližšie dni")
+  if forecast_data and "time" in forecast_data:
+    days = forecast_data.get("time", [])
+    t_max_f = forecast_data.get("temperature_2m_max", [])
+    t_min_f = forecast_data.get("temperature_2m_min", [])
+    rain_f = forecast_data.get("precipitation_sum", [])
+    w_codes = forecast_data.get("weather_code") or forecast_data.get(
+        "weathercode", []
+    )
 
-        num_days = len(days)
-        cols = st.columns(num_days)
+    num_days = min(len(days), 7)
+    cols = st.columns(num_days)
 
-        sk_dni = {
-            "Monday": "Pondelok",
-            "Tuesday": "Utorok",
-            "Wednesday": "Streda",
-            "Thursday": "Štvrtok",
-            "Friday": "Piatok",
-            "Saturday": "Sobota",
-            "Sunday": "Nedeľa",
-        }
+    sk_dni = {
+        "Monday": "Pondelok",
+        "Tuesday": "Utorok",
+        "Wednesday": "Streda",
+        "Thursday": "Štvrtok",
+        "Friday": "Piatok",
+        "Saturday": "Sobota",
+        "Sunday": "Nedeľa",
+    }
 
-        for i in range(num_days):
-            with cols[i]:
-                date_obj = datetime.datetime.strptime(days[i], "%Y-%m-%d")
-                nazov_dna = sk_dni.get(date_obj.strftime("%A"), "")
-                formatted_date = f"{nazov_dna}<br>{date_obj.day}.{date_obj.month}."
+    for i in range(num_days):
+      with cols[i]:
+        date_obj = datetime.datetime.strptime(days[i], "%Y-%m-%d")
+        nazov_dna = sk_dni.get(date_obj.strftime("%A"), "")
+        formatted_date = f"{nazov_dna}<br>{date_obj.day}.{date_obj.month}."
 
-                icon = get_weather_icon(w_codes[i])
-                st.markdown(
-                    f"""
+        code_val = w_codes[i] if i < len(w_codes) else 0
+        icon = get_weather_icon(code_val)
+        st.markdown(
+            f"""
                     <div class="weather-card">
                         <div class="card-title" style="height: 45px; line-height: 1.2;">{formatted_date}</div>
                         <div style="font-size: 1.8em; margin: 4px 0;">{icon}</div>
@@ -871,16 +953,18 @@ with tab_aktualne:
                         <div style="font-size: 0.8em; opacity: 0.7; margin-top: 6px;">🌧️ {rain_f[i]:.1f} mm</div>
                     </div>
                     """,
-                    unsafe_allow_html=True,
-                )
+            unsafe_allow_html=True,
+        )
 
-# --- NOVÁ ZÁLOŽKA: ŽIVÝ ZRÁŽKOVÝ RADAR A PREDPOVEĎ ---
+# --- ZÁLOŽKA: ŽIVÝ ZRÁŽKOVÝ RADAR A PREDPOVEĎ ---
 with tab_radar:
-    st.subheader("📡 Živý zrážkový radar a krátkodobá predpoveď")
-    st.caption("Pusté Pole a okolie • Postup zrážok s možnosťou posunu v čase na najbližšie hodiny.")
+  st.subheader("📡 Živý zrážkový radar a krátkodobá predpoveď")
+  st.caption(
+      "Pusté Pole a okolie • Postup zrážok s možnosťou posunu v čase na"
+      " najbližšie hodiny."
+  )
 
-    # Radar s predpoveďou zrážok (overlay=rain) vycentrovaný presne na Pusté Pole
-    windy_iframe_code = f"""
+  windy_iframe_code = f"""
     <iframe 
         width="100%" 
         height="600" 
@@ -889,432 +973,485 @@ with tab_radar:
         style="border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"
     ></iframe>
     """
-    components.html(windy_iframe_code, height=620)
+  components.html(windy_iframe_code, height=620)
 
 with tab_historia:
-    df = load_data()
+  df = load_data()
 
-    if df is not None and not df.empty:
-        st.sidebar.header("⚙️ Ovládací panel (Filtre)")
-        volba = st.sidebar.radio(
-            "Vyberte spôsob zobrazenia:",
-            [
-                "1 - Posledných 7 dní",
-                "2 - Konkrétny rok",
-                "3 - Konkrétny mesiac a rok",
-                "4 - Vlastné obdobie (od - do)",
-            ],
-        )
+  if df is not None and not df.empty:
+    st.sidebar.header("⚙️ Ovládací panel (Filtre)")
+    volba = st.sidebar.radio(
+        "Vyberte spôsob zobrazenia:",
+        [
+            "1 - Posledných 7 dní",
+            "2 - Konkrétny rok",
+            "3 - Konkrétny mesiac a rok",
+            "4 - Vlastné obdobie (od - do)",
+        ],
+    )
 
-        min_d = df["DateTime"].min().date()
-        max_d = df["DateTime"].max().date()
-        df_filtered = df.copy()
+    min_d = df["DateTime"].min().date()
+    max_d = df["DateTime"].max().date()
+    df_filtered = df.copy()
 
-        df_prev = pd.DataFrame()
+    df_prev = pd.DataFrame()
 
-        if "1" in volba:
-            datum_do = max_d
-            datum_od = max_d - datetime.timedelta(days=6)
-            df_filtered = df_filtered[
-                (df_filtered["DateTime"].dt.date >= datum_od)
-                & (df_filtered["DateTime"].dt.date <= datum_do)
-            ]
-            prev_datum_do = datum_od - datetime.timedelta(days=1)
-            prev_datum_od = prev_datum_do - datetime.timedelta(days=6)
-            df_prev = df[
-                (df["DateTime"].dt.date >= prev_datum_od)
-                & (df["DateTime"].dt.date <= prev_datum_do)
-            ]
-        elif "2" in volba:
-            dostupne_roky = sorted(df["DateTime"].dt.year.unique())
-            vybrany_rok = st.sidebar.selectbox("Vyberte rok", dostupne_roky)
-            df_filtered = df_filtered[df_filtered["DateTime"].dt.year == vybrany_rok]
-            df_prev = df[df["DateTime"].dt.year == vybrany_rok - 1]
-        elif "3" in volba:
-            dostupne_roky = sorted(df["DateTime"].dt.year.unique())
-            vybrany_rok = st.sidebar.selectbox("Vyberte rok", dostupne_roky)
-            vybrany_mesiac = st.sidebar.selectbox(
-                "Vyberte mesiac",
-                list(range(1, 13)),
-                format_func=lambda x: [
-                    "Január", "Február", "Marec", "Apríl", "Máj", "Jún",
-                    "Júl", "August", "September", "Október", "November", "December",
-                ][x - 1],
+    if "1" in volba:
+      datum_do = max_d
+      datum_od = max_d - datetime.timedelta(days=6)
+      df_filtered = df_filtered[
+          (df_filtered["DateTime"].dt.date >= datum_od)
+          & (df_filtered["DateTime"].dt.date <= datum_do)
+      ]
+      prev_datum_do = datum_od - datetime.timedelta(days=1)
+      prev_datum_od = prev_datum_do - datetime.timedelta(days=6)
+      df_prev = df[
+          (df["DateTime"].dt.date >= prev_datum_od)
+          & (df["DateTime"].dt.date <= prev_datum_do)
+      ]
+    elif "2" in volba:
+      dostupne_roky = sorted(df["DateTime"].dt.year.unique())
+      vybrany_rok = st.sidebar.selectbox("Vyberte rok", dostupne_roky)
+      df_filtered = df_filtered[df_filtered["DateTime"].dt.year == vybrany_rok]
+      df_prev = df[df["DateTime"].dt.year == vybrany_rok - 1]
+    elif "3" in volba:
+      dostupne_roky = sorted(df["DateTime"].dt.year.unique())
+      vybrany_rok = st.sidebar.selectbox("Vyberte rok", dostupne_roky)
+      vybrany_mesiac = st.sidebar.selectbox(
+          "Vyberte mesiac",
+          list(range(1, 13)),
+          format_func=lambda x: [
+              "Január",
+              "Február",
+              "Marec",
+              "Apríl",
+              "Máj",
+              "Jún",
+              "Júl",
+              "August",
+              "September",
+              "Október",
+              "November",
+              "December",
+          ][x - 1],
+      )
+      df_filtered = df_filtered[
+          (df_filtered["DateTime"].dt.year == vybrany_rok)
+          & (df_filtered["DateTime"].dt.month == vybrany_mesiac)
+      ]
+      prev_month = vybrany_mesiac - 1 if vybrany_mesiac > 1 else 12
+      prev_year = vybrany_rok if vybrany_mesiac > 1 else vybrany_rok - 1
+      df_prev = df[
+          (df["DateTime"].dt.year == prev_year)
+          & (df["DateTime"].dt.month == prev_month)
+      ]
+    elif "4" in volba:
+      datum_od = st.sidebar.date_input("Dátum od", min_d)
+      datum_do = st.sidebar.date_input("Dátum do", max_d)
+      df_filtered = df_filtered[
+          (df_filtered["DateTime"].dt.date >= datum_od)
+          & (df_filtered["DateTime"].dt.date <= datum_do)
+      ]
+      delta_dni = (datum_do - datum_od).days + 1
+      prev_datum_do = datum_od - datetime.timedelta(days=1)
+      prev_datum_od = prev_datum_do - datetime.timedelta(days=delta_dni - 1)
+      df_prev = df[
+          (df["DateTime"].dt.date >= prev_datum_od)
+          & (df["DateTime"].dt.date <= prev_datum_do)
+      ]
+
+    t_max_col = next(
+        (c for c in df.columns if "tepl" in c.lower() and "max" in c.lower()),
+        None,
+    )
+    t_min_col = next(
+        (c for c in df.columns if "tepl" in c.lower() and "min" in c.lower()),
+        None,
+    )
+    t_avg_col = next(
+        (
+            c
+            for c in df.columns
+            if "tepl" in c.lower()
+            and ("priem" in c.lower() or "avg" in c.lower())
+        ),
+        None,
+    )
+    w_max_col = next(
+        (c for c in df.columns if "viet" in c.lower() and "max" in c.lower()),
+        None,
+    )
+    r_col = next(
+        (
+            c
+            for c in df.columns
+            if any(
+                k in c.lower()
+                for k in ["zráž", "zraz", "rain", "uhrn", "precipitation"]
             )
-            df_filtered = df_filtered[
-                (df_filtered["DateTime"].dt.year == vybrany_rok)
-                & (df_filtered["DateTime"].dt.month == vybrany_mesiac)
-            ]
-            prev_month = vybrany_mesiac - 1 if vybrany_mesiac > 1 else 12
-            prev_year = vybrany_rok if vybrany_mesiac > 1 else vybrany_rok - 1
-            df_prev = df[
-                (df["DateTime"].dt.year == prev_year)
-                & (df["DateTime"].dt.month == prev_month)
-            ]
-        elif "4" in volba:
-            datum_od = st.sidebar.date_input("Dátum od", min_d)
-            datum_do = st.sidebar.date_input("Dátum do", max_d)
-            df_filtered = df_filtered[
-                (df_filtered["DateTime"].dt.date >= datum_od)
-                & (df_filtered["DateTime"].dt.date <= datum_do)
-            ]
-            delta_dni = (datum_do - datum_od).days + 1
-            prev_datum_do = datum_od - datetime.timedelta(days=1)
-            prev_datum_od = prev_datum_do - datetime.timedelta(days=delta_dni - 1)
-            df_prev = df[
-                (df["DateTime"].dt.date >= prev_datum_od)
-                & (df["DateTime"].dt.date <= prev_datum_do)
-            ]
+        ),
+        None,
+    )
+    h_col = next(
+        (c for c in df.columns if any(k in c.lower() for k in ["vlhk", "hum"])),
+        None,
+    )
+    w_dir_col = next(
+        (
+            c
+            for c in df.columns
+            if any(k in c.lower() for k in ["smer", "wdir"])
+        ),
+        None,
+    )
+    w_speed_col = next(
+        (
+            c
+            for c in df.columns
+            if any(k in c.lower() for k in ["vietor", "wind", "wspd"])
+        ),
+        None,
+    )
 
-        t_max_col = next(
-            (c for c in df.columns if "tepl" in c.lower() and "max" in c.lower()), None,
-        )
-        t_min_col = next(
-            (c for c in df.columns if "tepl" in c.lower() and "min" in c.lower()), None,
-        )
-        t_avg_col = next(
-            (c for c in df.columns if "tepl" in c.lower() and ("priem" in c.lower() or "avg" in c.lower())), None,
-        )
-        w_max_col = next(
-            (c for c in df.columns if "viet" in c.lower() and "max" in c.lower()), None,
-        )
-        r_col = next(
-            (c for c in df.columns if any(k in c.lower() for k in ["zráž", "zraz", "rain", "uhrn", "precipitation"])), None,
-        )
-        h_col = next(
-            (c for c in df.columns if any(k in c.lower() for k in ["vlhk", "hum"])), None,
-        )
-        w_dir_col = next(
-            (c for c in df.columns if any(k in c.lower() for k in ["smer", "wdir"])), None,
-        )
-        w_speed_col = next(
-            (c for c in df.columns if any(k in c.lower() for k in ["vietor", "wind", "wspd"])), None,
-        )
+    # --- 1. ABSOLÚTNE REKORDY STANICE ---
+    st.subheader("🏆 Absolútne rekordy stanice (od 1. 7. 2026)")
+    if t_max_col and t_min_col and w_max_col and r_col:
+      abs_max_t_row = df.loc[df[t_max_col].idxmax()]
+      abs_min_t_row = df.loc[df[t_min_col].idxmin()]
+      abs_max_w_row = df.loc[df[w_max_col].idxmax()]
+      abs_max_r_row = df.loc[df[r_col].idxmax()]
 
-        # --- 1. ABSOLÚTNE REKORDY STANICE ---
-        st.subheader("🏆 Absolútne rekordy stanice (od 1. 7. 2026)")
-        if t_max_col and t_min_col and w_max_col and r_col:
-            abs_max_t_row = df.loc[df[t_max_col].idxmax()]
-            abs_min_t_row = df.loc[df[t_min_col].idxmin()]
-            abs_max_w_row = df.loc[df[w_max_col].idxmax()]
-            abs_max_r_row = df.loc[df[r_col].idxmax()]
-
-            acol1, acol2, acol3, acol4 = st.columns(4)
-            acol1.metric(
-                "🌡️ Abs. Max Teplota",
-                f"{abs_max_t_row[t_max_col]:.1f} °C",
-                delta=str(
-                    abs_max_t_row["DateTime"].strftime("%d.%m.%Y")
-                    if pd.notnull(abs_max_t_row["DateTime"])
-                    else ""
-                ),
-            )
-            acol2.metric(
-                "❄️ Abs. Min Teplota",
-                f"{abs_min_t_row[t_min_col]:.1f} °C",
-                delta=str(
-                    abs_min_t_row["DateTime"].strftime("%d.%m.%Y")
-                    if pd.notnull(abs_min_t_row["DateTime"])
-                    else ""
-                ),
-            )
-            acol3.metric(
-                "💨 Abs. Max Vietor",
-                f"{abs_max_w_row[w_max_col]:.1f} km/h",
-                delta=str(
-                    abs_max_w_row["DateTime"].strftime("%d.%m.%Y")
-                    if pd.notnull(abs_max_w_row["DateTime"])
-                    else ""
-                ),
-            )
-            acol4.metric(
-                "🌧️ Abs. Max Zrážky",
-                f"{abs_max_r_row[r_col]:.1f} mm",
-                delta=str(
-                    abs_max_r_row["DateTime"].strftime("%d.%m.%Y")
-                    if pd.notnull(abs_max_r_row["DateTime"])
-                    else ""
-                ),
-            )
-        else:
-            st.info("Niektoré stĺpce pre absolútne rekordy neboli v CSV súbore nájdené.")
-
-        st.markdown("---")
-
-        # --- 2. ŠTATISTIKY A EXTRÉMY ZA VYBRANÉ OBDOBIE ---
-        st.subheader("📊 Štatistiky a vývoj za vybrané obdobie")
-
-        if not df_filtered.empty:
-            max_temp = (
-                df_filtered[t_max_col].max()
-                if t_max_col and not df_filtered[t_max_col].isna().all()
-                else 0
-            )
-            min_temp = (
-                df_filtered[t_min_col].min()
-                if t_min_col and not df_filtered[t_min_col].isna().all()
-                else 0
-            )
-            avg_temp = (
-                df_filtered[t_avg_col].mean()
-                if t_avg_col and not df_filtered[t_avg_col].isna().all()
-                else 0
-            )
-            max_wind = (
-                df_filtered[w_max_col].max()
-                if w_max_col and not df_filtered[w_max_col].isna().all()
-                else 0
-            )
-            total_rain = (
-                df_filtered[r_col].sum()
-                if r_col and not df_filtered[r_col].isna().all()
-                else 0
-            )
-            max_rain = (
-                df_filtered[r_col].max()
-                if r_col and not df_filtered[r_col].isna().all()
-                else 0
-            )
-
-            delta_max_t, delta_min_t, delta_avg_t, delta_wind, delta_rain = (
-                None, None, None, None, None,
-            )
-            if not df_prev.empty:
-                prev_max_temp = (
-                    df_prev[t_max_col].max()
-                    if t_max_col and not df_prev[t_max_col].isna().all()
-                    else None
-                )
-                prev_min_temp = (
-                    df_prev[t_min_col].min()
-                    if t_min_col and not df_prev[t_min_col].isna().all()
-                    else None
-                )
-                prev_avg_temp = (
-                    df_prev[t_avg_col].mean()
-                    if t_avg_col and not df_prev[t_avg_col].isna().all()
-                    else None
-                )
-                prev_max_wind = (
-                    df_prev[w_max_col].max()
-                    if w_max_col and not df_prev[w_max_col].isna().all()
-                    else None
-                )
-                prev_total_rain = (
-                    df_prev[r_col].sum()
-                    if r_col and not df_prev[r_col].isna().all()
-                    else None
-                )
-
-                if prev_max_temp is not None:
-                    delta_max_t = f"{max_temp - prev_max_temp:+.1f} °C vs min. obdobie"
-                if prev_min_temp is not None:
-                    delta_min_t = f"{min_temp - prev_min_temp:+.1f} °C vs min. obdobie"
-                if prev_avg_temp is not None:
-                    delta_avg_t = f"{avg_temp - prev_avg_temp:+.1f} °C vs min. obdobie"
-                if prev_max_wind is not None:
-                    delta_wind = f"{max_wind - prev_max_wind:+.1f} km/h vs min. obdobie"
-                if prev_total_rain is not None:
-                    delta_rain = f"{total_rain - prev_total_rain:+.1f} mm vs min. obdobie"
-
-            col1, col2, col3, col4 = st.columns(4)
-            col1.metric("📈 Max Teplota", f"{max_temp:.1f} °C", delta=delta_max_t)
-            col2.metric("📉 Min Teplota", f"{min_temp:.1f} °C", delta=delta_min_t)
-            col3.metric("🌡️ Priemerná Teplota", f"{avg_temp:.1f} °C", delta=delta_avg_t)
-            col4.metric("💨 Max Vietor", f"{max_wind:.1f} km/h", delta=delta_wind)
-
-            ecol1, ecol2, ecol3 = st.columns(3)
-            ecol1.metric("🌧️ Celkové Zrážky", f"{total_rain:.1f} mm", delta=delta_rain)
-            ecol2.metric("⛈️ Maximálne Zrážky", f"{max_rain:.1f} mm")
-            ecol3.metric("📅 Počet záznamov", f"{len(df_filtered)}")
-
-            st.markdown("---")
-
-            view_mode = st.radio(
-                "Zvoliť spôsob zobrazenia údajov:",
-                ["📈 Grafy", "📋 Tabuľka"],
-                horizontal=True,
-            )
-
-            if view_mode == "📈 Grafy":
-                chart_config = {"displayModeBar": False}
-                layout_updates = dict(
-                    height=300,
-                    margin=dict(l=10, r=10, t=40, b=10),
-                    legend=dict(
-                        orientation="h", yanchor="bottom", y=-0.4, xanchor="center", x=0.5
-                    ),
-                )
-
-                gcol1, gcol2 = st.columns(2)
-
-                with gcol1:
-                    fig_temp = go.Figure()
-                    if t_max_col:
-                        fig_temp.add_trace(
-                            go.Scatter(
-                                x=df_filtered["DateTime"],
-                                y=df_filtered[t_max_col],
-                                name="Max Teplota",
-                                line=dict(color="#d9534f", width=2),
-                                hovertemplate="%{name}: <b>%{y:.1f} °C</b><extra></extra>"
-                            )
-                        )
-                    if t_min_col:
-                        fig_temp.add_trace(
-                            go.Scatter(
-                                x=df_filtered["DateTime"],
-                                y=df_filtered[t_min_col],
-                                name="Min Teplota",
-                                line=dict(color="#337ab7", width=2),
-                                hovertemplate="%{name}: <b>%{y:.1f} °C</b><extra></extra>"
-                            )
-                        )
-                    fig_temp.update_layout(title="🌡️ Vývoj teploty v čase", **layout_updates)
-                    st.plotly_chart(
-                        fig_temp,
-                        use_container_width=True,
-                        theme="streamlit",
-                        config=chart_config,
-                    )
-
-                    if r_col:
-                        fig_rain = go.Figure()
-                        fig_rain.add_trace(
-                            go.Bar(
-                                x=df_filtered["DateTime"],
-                                y=df_filtered[r_col],
-                                name="Zrážky",
-                                marker_color="#3498db",
-                                hovertemplate="%{name}: <b>%{y:.1f} mm</b><extra></extra>"
-                            )
-                        )
-                        fig_rain.update_layout(
-                            title="🌧️ Úhrn zrážok v čase", **layout_updates
-                        )
-                        st.plotly_chart(
-                            fig_rain,
-                            use_container_width=True,
-                            theme="streamlit",
-                            config=chart_config,
-                        )
-
-                with gcol2:
-                    if w_max_col:
-                        fig_wind = go.Figure()
-                        fig_wind.add_trace(
-                            go.Scatter(
-                                x=df_filtered["DateTime"],
-                                y=df_filtered[w_max_col],
-                                name="Max Rýchlosť vetra",
-                                line=dict(color="#f39c12", width=2),
-                                hovertemplate="%{name}: <b>%{y:.1f} km/h</b><extra></extra>"
-                            )
-                        )
-                        fig_wind.update_layout(
-                            title="💨 Maximálna rýchlosť vetra", **layout_updates
-                        )
-                        st.plotly_chart(
-                            fig_wind,
-                            use_container_width=True,
-                            theme="streamlit",
-                            config=chart_config,
-                        )
-
-                    if h_col:
-                        fig_hum = go.Figure()
-                        fig_hum.add_trace(
-                            go.Scatter(
-                                x=df_filtered["DateTime"],
-                                y=df_filtered[h_col],
-                                name="Vlhkosť",
-                                line=dict(color="#2ecc71", width=2),
-                                hovertemplate="%{name}: <b>%{y:.1f} %</b><extra></extra>"
-                            )
-                        )
-                        fig_hum.update_layout(
-                            title="💧 Vývoj vlhkosti vzduchu", **layout_updates
-                        )
-                        st.plotly_chart(
-                            fig_hum,
-                            use_container_width=True,
-                            theme="streamlit",
-                            config=chart_config,
-                        )
-
-                if w_dir_col and w_speed_col:
-                    st.markdown("---")
-                    st.subheader("🧭 Veterná ružica (Rozloženie smerov vetra)")
-
-                    df_wind_rose = df_filtered.dropna(
-                        subset=[w_dir_col, w_speed_col]
-                    ).copy()
-                    if not df_wind_rose.empty:
-                        try:
-                            df_wind_rose["dir_deg"] = (
-                                df_wind_rose[w_dir_col]
-                                .astype(str)
-                                .str.replace("°", "")
-                                .astype(float)
-                            )
-                            fig_rose = px.bar_polar(
-                                df_wind_rose,
-                                r=w_speed_col,
-                                theta="dir_deg",
-                                color=w_speed_col,
-                                color_continuous_scale="Viridis",
-                                template="plotly",
-                                title="Smer a rýchlosť vetra v polárnej schéme",
-                            )
-                            fig_rose.update_layout(
-                                height=400, margin=dict(l=20, r=20, t=50, b=20)
-                            )
-                            st.plotly_chart(
-                                fig_rose,
-                                use_container_width=True,
-                                theme="streamlit",
-                                config=chart_config,
-                            )
-                        except Exception:
-                            st.info(
-                                "Smer vetra v CSV súbore nie je v číselnom formáte (stupne"
-                                " 0-360), preto sa polárna veterná ružica nedá vykresliť."
-                            )
-            else:
-                st.subheader("📋 Podrobná tabuľka dát")
-                df_table = df_filtered.sort_values("DateTime", ascending=False).copy()
-
-                if "DateTime" in df_table.columns:
-                    df_table["Dátum"] = df_table["DateTime"].dt.strftime("%d.%m.%Y")
-                    time_cols = [
-                        c
-                        for c in df_table.columns
-                        if any(
-                            k in c.lower() for k in ["čas", "cas", "time", "datetime"]
-                        )
-                        and c != "DateTime"
-                    ]
-                    df_table = df_table.drop(
-                        columns=["DateTime"] + time_cols, errors="ignore"
-                    )
-                    cols = ["Dátum"] + [
-                        c for c in df_table.columns if c != "Dátum"
-                    ]
-                    df_table = df_table[cols]
-
-                st.dataframe(df_table, use_container_width=True)
-
-                csv_export_data = df_table.to_csv(index=False, sep=";").encode("utf-8")
-                st.download_button(
-                    label="📥 Stiahnuť vyfiltrované dáta (CSV)",
-                    data=csv_export_data,
-                    file_name="meteo_puste_pole_vyber.csv",
-                    mime="text/csv",
-                )
-
-        else:
-            st.warning("Pre zvolené obdobie nie sú k dispozícii žiadne dáta.")
+      acol1, acol2, acol3, acol4 = st.columns(4)
+      acol1.metric(
+          "🌡️ Abs. Max Teplota",
+          f"{abs_max_t_row[t_max_col]:.1f} °C",
+          delta=str(
+              abs_max_t_row["DateTime"].strftime("%d.%m.%Y")
+              if pd.notnull(abs_max_t_row["DateTime"])
+              else ""
+          ),
+      )
+      acol2.metric(
+          "❄️ Abs. Min Teplota",
+          f"{abs_min_t_row[t_min_col]:.1f} °C",
+          delta=str(
+              abs_min_t_row["DateTime"].strftime("%d.%m.%Y")
+              if pd.notnull(abs_min_t_row["DateTime"])
+              else ""
+          ),
+      )
+      acol3.metric(
+          "💨 Abs. Max Vietor",
+          f"{abs_max_w_row[w_max_col]:.1f} km/h",
+          delta=str(
+              abs_max_w_row["DateTime"].strftime("%d.%m.%Y")
+              if pd.notnull(abs_max_w_row["DateTime"])
+              else ""
+          ),
+      )
+      acol4.metric(
+          "🌧️ Abs. Max Zrážky",
+          f"{abs_max_r_row[r_col]:.1f} mm",
+          delta=str(
+              abs_max_r_row["DateTime"].strftime("%d.%m.%Y")
+              if pd.notnull(abs_max_r_row["DateTime"])
+              else ""
+          ),
+      )
     else:
-        st.warning(
-            f"Súbor '{CSV_FILE}' nebol nájdený. Skontrolujte prosím jeho prítomnosť v adresári."
+      st.info(
+          "Niektoré stĺpce pre absolútne rekordy neboli v CSV súbore nájdené."
+      )
+
+    st.markdown("---")
+
+    # --- 2. ŠTATISTIKY A EXTRÉMY ZA VYBRANÉ OBDOBIE ---
+    st.subheader("📊 Štatistiky a vývoj za vybrané obdobie")
+
+    if not df_filtered.empty:
+      max_temp = (
+          df_filtered[t_max_col].max()
+          if t_max_col and not df_filtered[t_max_col].isna().all()
+          else 0
+      )
+      min_temp = (
+          df_filtered[t_min_col].min()
+          if t_min_col and not df_filtered[t_min_col].isna().all()
+          else 0
+      )
+      avg_temp = (
+          df_filtered[t_avg_col].mean()
+          if t_avg_col and not df_filtered[t_avg_col].isna().all()
+          else 0
+      )
+      max_wind = (
+          df_filtered[w_max_col].max()
+          if w_max_col and not df_filtered[w_max_col].isna().all()
+          else 0
+      )
+      total_rain = (
+          df_filtered[r_col].sum()
+          if r_col and not df_filtered[r_col].isna().all()
+          else 0
+      )
+      max_rain = (
+          df_filtered[r_col].max()
+          if r_col and not df_filtered[r_col].isna().all()
+          else 0
+      )
+
+      delta_max_t, delta_min_t, delta_avg_t, delta_wind, delta_rain = (
+          None,
+          None,
+          None,
+          None,
+          None,
+      )
+      if not df_prev.empty:
+        prev_max_temp = (
+            df_prev[t_max_col].max()
+            if t_max_col and not df_prev[t_max_col].isna().all()
+            else None
         )
+        prev_min_temp = (
+            df_prev[t_min_col].min()
+            if t_min_col and not df_prev[t_min_col].isna().all()
+            else None
+        )
+        prev_avg_temp = (
+            df_prev[t_avg_col].mean()
+            if t_avg_col and not df_prev[t_avg_col].isna().all()
+            else None
+        )
+        prev_max_wind = (
+            df_prev[w_max_col].max()
+            if w_max_col and not df_prev[w_max_col].isna().all()
+            else None
+        )
+        prev_total_rain = (
+            df_prev[r_col].sum()
+            if r_col and not df_prev[r_col].isna().all()
+            else None
+        )
+
+        if prev_max_temp is not None:
+          delta_max_t = f"{max_temp - prev_max_temp:+.1f} °C vs min. obdobie"
+        if prev_min_temp is not None:
+          delta_min_t = f"{min_temp - prev_min_temp:+.1f} °C vs min. obdobie"
+        if prev_avg_temp is not None:
+          delta_avg_t = f"{avg_temp - prev_avg_temp:+.1f} °C vs min. obdobie"
+        if prev_max_wind is not None:
+          delta_wind = f"{max_wind - prev_max_wind:+.1f} km/h vs min. obdobie"
+        if prev_total_rain is not None:
+          delta_rain = f"{total_rain - prev_total_rain:+.1f} mm vs min. obdobie"
+
+      col1, col2, col3, col4 = st.columns(4)
+      col1.metric("📈 Max Teplota", f"{max_temp:.1f} °C", delta=delta_max_t)
+      col2.metric("📉 Min Teplota", f"{min_temp:.1f} °C", delta=delta_min_t)
+      col3.metric(
+          "🌡️ Priemerná Teplota", f"{avg_temp:.1f} °C", delta=delta_avg_t
+      )
+      col4.metric("💨 Max Vietor", f"{max_wind:.1f} km/h", delta=delta_wind)
+
+      ecol1, ecol2, ecol3 = st.columns(3)
+      ecol1.metric(
+          "🌧️ Celkové Zrážky", f"{total_rain:.1f} mm", delta=delta_rain
+      )
+      ecol2.metric("⛈️ Maximálne Zrážky", f"{max_rain:.1f} mm")
+      ecol3.metric("📅 Počet záznamov", f"{len(df_filtered)}")
+
+      st.markdown("---")
+
+      view_mode = st.radio(
+          "Zvoliť spôsob zobrazenia údajov:",
+          ["📈 Grafy", "📋 Tabuľka"],
+          horizontal=True,
+      )
+
+      if view_mode == "📈 Grafy":
+        chart_config = {"displayModeBar": False}
+        layout_updates = dict(
+            height=300,
+            margin=dict(l=10, r=10, t=40, b=10),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=-0.4,
+                xanchor="center",
+                x=0.5,
+            ),
+        )
+
+        gcol1, gcol2 = st.columns(2)
+
+        with gcol1:
+          fig_temp = go.Figure()
+          if t_max_col:
+            fig_temp.add_trace(
+                go.Scatter(
+                    x=df_filtered["DateTime"],
+                    y=df_filtered[t_max_col],
+                    name="Max Teplota",
+                    line=dict(color="#d9534f", width=2),
+                    hovertemplate="%{name}: <b>%{y:.1f} °C</b><extra></extra>",
+                )
+            )
+          if t_min_col:
+            fig_temp.add_trace(
+                go.Scatter(
+                    x=df_filtered["DateTime"],
+                    y=df_filtered[t_min_col],
+                    name="Min Teplota",
+                    line=dict(color="#337ab7", width=2),
+                    hovertemplate="%{name}: <b>%{y:.1f} °C</b><extra></extra>",
+                )
+            )
+          fig_temp.update_layout(
+              title="🌡️ Vývoj teploty v čase", **layout_updates
+          )
+          st.plotly_chart(
+              fig_temp,
+              use_container_width=True,
+              theme="streamlit",
+              config=chart_config,
+          )
+
+          if r_col:
+            fig_rain = go.Figure()
+            fig_rain.add_trace(
+                go.Bar(
+                    x=df_filtered["DateTime"],
+                    y=df_filtered[r_col],
+                    name="Zrážky",
+                    marker_color="#3498db",
+                    hovertemplate="%{name}: <b>%{y:.1f} mm</b><extra></extra>",
+                )
+            )
+            fig_rain.update_layout(
+                title="🌧️ Úhrn zrážok v čase", **layout_updates
+            )
+            st.plotly_chart(
+              fig_rain,
+              use_container_width=True,
+              theme="streamlit",
+              config=chart_config,
+          )
+
+        with gcol2:
+          if w_max_col:
+            fig_wind = go.Figure()
+            fig_wind.add_trace(
+                go.Scatter(
+                    x=df_filtered["DateTime"],
+                    y=df_filtered[w_max_col],
+                    name="Max Rýchlosť vetra",
+                    line=dict(color="#f39c12", width=2),
+                    hovertemplate="%{name}: <b>%{y:.1f} km/h</b><extra></extra>",
+                )
+            )
+            fig_wind.update_layout(
+                title="💨 Maximálna rýchlosť vetra", **layout_updates
+            )
+            st.plotly_chart(
+                fig_wind,
+                use_container_width=True,
+                theme="streamlit",
+                config=chart_config,
+            )
+
+          if h_col:
+            fig_hum = go.Figure()
+            fig_hum.add_trace(
+                go.Scatter(
+                    x=df_filtered["DateTime"],
+                    y=df_filtered[h_col],
+                    name="Vlhkosť",
+                    line=dict(color="#2ecc71", width=2),
+                    hovertemplate="%{name}: <b>%{y:.1f} %</b><extra></extra>",
+                )
+            )
+            fig_hum.update_layout(
+                title="💧 Vývoj vlhkosti vzduchu", **layout_updates
+            )
+            st.plotly_chart(
+                fig_hum,
+                use_container_width=True,
+                theme="streamlit",
+                config=chart_config,
+            )
+
+        if w_dir_col and w_speed_col:
+          st.markdown("---")
+          st.subheader("🧭 Veterná ružica (Rozloženie smerov vetra)")
+
+          df_wind_rose = df_filtered.dropna(
+              subset=[w_dir_col, w_speed_col]
+          ).copy()
+          if not df_wind_rose.empty:
+            try:
+              df_wind_rose["dir_deg"] = (
+                  df_wind_rose[w_dir_col]
+                  .astype(str)
+                  .str.replace("°", "")
+                  .astype(float)
+              )
+              fig_rose = px.bar_polar(
+                  df_wind_rose,
+                  r=w_speed_col,
+                  theta="dir_deg",
+                  color=w_speed_col,
+                  color_continuous_scale="Viridis",
+                  template="plotly",
+                  title="Smer a rýchlosť vetra v polárnej schéme",
+              )
+              fig_rose.update_layout(
+                  height=400, margin=dict(l=20, r=20, t=50, b=20)
+              )
+              st.plotly_chart(
+                  fig_rose,
+                  use_container_width=True,
+                  theme="streamlit",
+                  config=chart_config,
+              )
+            except Exception:
+              st.info(
+                  "Smer vetra v CSV súbore nie je v číselnom formáte (stupne"
+                  " 0-360), preto sa polárna veterná ružica nedá vykresliť."
+              )
+      else:
+        st.subheader("📋 Podrobná tabuľka dát")
+        df_table = df_filtered.sort_values("DateTime", ascending=False).copy()
+
+        if "DateTime" in df_table.columns:
+          df_table["Dátum"] = df_table["DateTime"].dt.strftime("%d.%m.%Y")
+          time_cols = [
+              c
+              for c in df_table.columns
+              if any(
+                  k in c.lower() for k in ["čas", "cas", "time", "datetime"]
+              )
+              and c != "DateTime"
+          ]
+          df_table = df_table.drop(
+              columns=["DateTime"] + time_cols, errors="ignore"
+          )
+          cols = ["Dátum"] + [c for c in df_table.columns if c != "Dátum"]
+          df_table = df_table[cols]
+
+        st.dataframe(df_table, use_container_width=True)
+
+        csv_export_data = df_table.to_csv(index=False, sep=";").encode("utf-8")
+        st.download_button(
+            label="📥 Stiahnuť vyfiltrované dáta (CSV)",
+            data=csv_export_data,
+            file_name="meteo_puste_pole_vyber.csv",
+            mime="text/csv",
+        )
+
+    else:
+      st.warning("Pre zvolené obdobie nie sú k dispozícii žiadne dáta.")
+  else:
+    st.warning(
+        f"Súbor '{CSV_FILE}' nebol nájdený. Skontrolujte prosím jeho prítomnosť"
+        " v adresári."
+    )
