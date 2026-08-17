@@ -1,6 +1,6 @@
 import datetime
-import os
 from zoneinfo import ZoneInfo
+import os
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -362,11 +362,11 @@ def load_data():
   return df
 
 
-@st.cache_data(ttl=900)
 def fetch_weather_api_data(lat, lon):
-  url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code,sunrise,sunset&forecast_days=7&timezone=Europe%2FBratislava"
+  url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code,sunrise,sunset&forecast_days=7&timezone=auto"
+  headers = {"User-Agent": "MeteoPustePoleApp/1.0"}
   try:
-    response = requests.get(url, timeout=10)
+    response = requests.get(url, headers=headers, timeout=10)
     if response.status_code == 200:
       data = response.json()
       return (
@@ -834,46 +834,35 @@ with tab_aktualne:
   if hourly_api_data and "time" in hourly_api_data:
     times = hourly_api_data.get("time", [])
     temps = hourly_api_data.get("temperature_2m", [])
-    probs = hourly_api_data.get("precipitation_probability", [])
-    precips = hourly_api_data.get("precipitation", [])
-    codes = hourly_api_data.get("weather_code", [])
-
-    now_str = datetime.datetime.now(ZoneInfo("Europe/Bratislava")).strftime(
-        "%Y-%m-%dT%H:00"
+    probs = hourly_api_data.get("precipitation_probability", []) or [0] * len(
+        times
     )
+    precips = hourly_api_data.get("precipitation", []) or [0.0] * len(times)
+    codes = hourly_api_data.get("weather_code", []) or [0] * len(times)
+
+    now_hour = datetime.datetime.now().strftime("%Y-%m-%dT%H:00")
 
     start_idx = 0
-    for idx, t in enumerate(times):
-      if t >= now_str:
-        start_idx = idx
+    for i, t in enumerate(times):
+      if t >= now_hour:
+        start_idx = i
         break
 
     times_24 = times[start_idx : start_idx + 24]
     temps_24 = temps[start_idx : start_idx + 24]
-    probs_24 = (
-        probs[start_idx : start_idx + 24] if probs else [0] * len(times_24)
-    )
-    precips_24 = (
-        precips[start_idx : start_idx + 24] if precips else [0.0] * len(times_24)
-    )
-    codes_24 = (
-        codes[start_idx : start_idx + 24] if codes else [0] * len(times_24)
-    )
+    probs_24 = probs[start_idx : start_idx + 24]
+    precips_24 = precips[start_idx : start_idx + 24]
+    codes_24 = codes[start_idx : start_idx + 24]
 
     if times_24:
       cards_html = '<div class="scroll-container">'
       for t, temp, prob, precip, code in zip(
           times_24, temps_24, probs_24, precips_24, codes_24
       ):
-        dt_obj = datetime.datetime.fromisoformat(t)
-        time_str = dt_obj.strftime("%H:%M")
-        date_str = dt_obj.strftime("%d.%m.")
+        time_str = t.split("T")[1][:5]
+        date_str = ".".join(reversed(t.split("T")[0].split("-")[1:])) + "."
         h_icon = get_weather_icon(code)
-
-        try:
-          p_val_num = float(precip)
-        except:
-          p_val_num = 0.0
+        p_val_num = float(precip) if precip is not None else 0.0
 
         if p_val_num > 0:
           precip_html = (
@@ -1331,11 +1320,11 @@ with tab_historia:
                 title="🌧️ Úhrn zrážok v čase", **layout_updates
             )
             st.plotly_chart(
-              fig_rain,
-              use_container_width=True,
-              theme="streamlit",
-              config=chart_config,
-          )
+                fig_rain,
+                use_container_width=True,
+                theme="streamlit",
+                config=chart_config,
+            )
 
         with gcol2:
           if w_max_col:
