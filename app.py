@@ -16,12 +16,12 @@ st.set_page_config(
     layout="wide",
 )
 
-# Vynútenie načítania dát pri prvom otvorení
+# Vynútenie načítania čerstvých dát hneď pri prvom otvorení aplikácie
 if "initialized" not in st.session_state:
   st.session_state.initialized = True
   st.rerun()
 
-# Automatické obnovenie každých 5 minút
+# Automatické obnovenie stránky každých 5 minút (300 000 ms)
 count = st_autorefresh(interval=300000, limit=None, key="meteo_autorefresh")
 
 # --- VLASTNÉ CSS ŠTÝLY ---
@@ -312,7 +312,7 @@ def deg_to_cardinal(deg):
   return "Sever"
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=600)
 def load_data():
   if not os.path.exists(CSV_FILE):
     return None
@@ -338,6 +338,7 @@ def load_data():
   if not col_datum or not col_cas:
     return df
 
+  # Filtrovanie prednostne na večerný celodenný zber (23:57)
   df["Cas_clean"] = df[col_cas].astype(str).str.strip()
   df["is_night"] = df["Cas_clean"].str.startswith("23:5")
 
@@ -348,6 +349,7 @@ def load_data():
   )
   df = df.dropna(subset=["DateTime"])
 
+  # Zoradíme tak, aby záznam o 23:57 bol pre daný deň na konci a ponecháme ho
   df = df.sort_values(by=[col_datum, "is_night", "DateTime"])
   df = df.drop_duplicates(subset=[col_datum], keep="last")
   df = df.sort_values("DateTime").drop(columns=["Cas_clean", "is_night"])
@@ -360,33 +362,47 @@ def load_data():
   return df
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=1800)
 def fetch_weather_api_data(lat, lon):
-  url = (
-      f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
-      "&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m"
-      "&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m"
-      "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code,sunrise,sunset"
-      "&forecast_days=7&timezone=Europe%2FBratislava"
-  )
+  # API endpointy s vyrovnávacou pamäťou na 30 minút
+  endpoints = [
+      (
+          f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
+          "&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m"
+          "&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m"
+          "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code,sunrise,sunset"
+          "&forecast_days=7&timezone=auto"
+      ),
+      (
+          f"https://archive-api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
+          "&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m"
+          "&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m"
+          "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code,sunrise,sunset"
+          "&forecast_days=7&timezone=auto"
+      ),
+  ]
+
   headers = {
       "User-Agent": (
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-      )
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,"
+          " like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      ),
+      "Accept": "application/json",
   }
-  try:
-    response = requests.get(url, headers=headers, timeout=8)
-    if response.status_code == 200:
-      data = response.json()
-      return (
-          data.get("current", {}),
-          data.get("daily", {}),
-          data.get("hourly", {}),
-      )
-    else:
-      st.error(f"Open-Meteo API chyba (kód {response.status_code})")
-  except Exception as e:
-    st.error(f"Chyba pripojenia na Open-Meteo: {e}")
+
+  for url in endpoints:
+    try:
+      response = requests.get(url, headers=headers, timeout=8)
+      if response.status_code == 200:
+        data = response.json()
+        return (
+            data.get("current", {}),
+            data.get("daily", {}),
+            data.get("hourly", {}),
+        )
+    except Exception:
+      continue
+
   return {}, {}, {}
 
 
@@ -483,7 +499,7 @@ st.markdown(
 current_api_data, forecast_data, hourly_api_data = fetch_weather_api_data(
     LAT, LON
 )
-curr_code = current_api_data.get("weather_code", 0)
+curr_code = current_api_data.get("weather_code", 0) if current_api_data else 0
 curr_icon = get_weather_icon(curr_code)
 curr_desc = get_weather_description(curr_code)
 
