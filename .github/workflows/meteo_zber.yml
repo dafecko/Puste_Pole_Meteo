@@ -36,4 +36,5 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add meteo_puste_pole_v2.csv
           git commit -m "Denny zber do meteo_puste_pole_v2.csv" || echo "Žiadne zmeny na uloženie"
+          git pull --rebase
           git push
