@@ -65,8 +65,8 @@ st.markdown(
         border-radius: 10px;
     }
     .hourly-pill-card {
-        min-width: 90px;
-        max-width: 90px;
+        min-width: 82px;
+        max-width: 82px;
         background: var(--secondary-background-color);
         border: 1px solid rgba(150, 150, 150, 0.18);
         border-radius: 16px;
@@ -260,7 +260,7 @@ st.markdown(
     @media (max-width: 768px) {
         .weather-card { height: auto; margin-bottom: 15px; }
         .main-value, .main-value-tooltip { font-size: 1.4em; }
-        .hourly-pill-card { min-width: 82px; max-width: 82px; padding: 10px 4px; }
+        .hourly-pill-card { min-width: 76px; max-width: 76px; padding: 10px 4px; }
     }
     </style>
     """,
@@ -903,16 +903,17 @@ with tab_aktualne:
         else:
           temp_color = "#2980b9"
 
-        # Možnosť B: Ak hrozí dážď alebo je pravdepodobnosť >= 20%, zobrazujeme percentá aj milimetre spolu
+        # Údaje pod sebou: 1. riadok percentá s kvapkou, 2. riadok milimetre
         if prob >= 20 or p_val_num > 0.0:
           rain_snippet = (
-              f"<div style='background: rgba(41,128,185,0.15); color: #2980b9;"
-              f" font-size: 0.64em; font-weight: 800; border-radius: 6px;"
-              f" padding: 2px 3px; margin-top: 4px; white-space: nowrap;'>💧 {prob}% ({p_val_num:.1f}mm)</div>"
+              f"<div style='background: rgba(41,128,185,0.14); color: #2980b9; border-radius: 6px; padding: 3px 2px; margin-top: 4px;'>"
+              f"<div style='font-size: 0.68em; font-weight: 800; line-height: 1.1;'>💧 {prob}%</div>"
+              f"<div style='font-size: 0.62em; font-weight: 600; opacity: 0.85; margin-top: 1px;'>{p_val_num:.1f} mm</div>"
+              f"</div>"
           )
         else:
           rain_snippet = (
-              f"<div style='font-size: 0.65em; opacity: 0.4; margin-top: 4px;'>💨"
+              f"<div style='font-size: 0.65em; opacity: 0.4; margin-top: 8px;'>💨"
               f" {round(float(wind_spd))} km/h</div>"
           )
 
