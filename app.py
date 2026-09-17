@@ -1420,41 +1420,88 @@ with tab_historia:
                 config=chart_config,
             )
 
-        # MESAČNÁ BILANCIA
+        # MESAČNÁ BILANCIA (Moderné vizuálne karty)
         st.markdown("---")
         st.subheader("📅 Mesačná bilancia za vybrané obdobie")
+
+        sk_mesiace = {
+            "01": "Január",
+            "02": "Február",
+            "03": "Marec",
+            "04": "Apríl",
+            "05": "Máj",
+            "06": "Jún",
+            "07": "Júl",
+            "08": "August",
+            "09": "September",
+            "10": "Október",
+            "11": "November",
+            "12": "December",
+        }
+
         df_monthly = df_filtered.copy()
-        df_monthly["Mesiac_Rok"] = df_monthly["DateTime"].dt.strftime("%m/%Y")
+        df_monthly["M_num"] = df_monthly["DateTime"].dt.strftime("%m")
+        df_monthly["Y_num"] = df_monthly["DateTime"].dt.strftime("%Y")
+        df_monthly["Mesiac_Kluc"] = (
+            df_monthly["Y_num"] + "-" + df_monthly["M_num"]
+        )
 
         agg_dict = {}
         if t_max_col:
-          agg_dict["Max Teplota (°C)"] = (t_max_col, "max")
+          agg_dict["t_max"] = (t_max_col, "max")
         if t_min_col:
-          agg_dict["Min Teplota (°C)"] = (t_min_col, "min")
+          agg_dict["t_min"] = (t_min_col, "min")
         if t_avg_col:
-          agg_dict["Priemerná Teplota (°C)"] = (t_avg_col, "mean")
+          agg_dict["t_avg"] = (t_avg_col, "mean")
         if r_col:
-          agg_dict["Úhrn zrážok (mm)"] = (r_col, "sum")
+          agg_dict["r_sum"] = (r_col, "sum")
         if w_max_col:
-          agg_dict["Max Vietor (km/h)"] = (w_max_col, "max")
+          agg_dict["w_max"] = (w_max_col, "max")
 
         if agg_dict:
           monthly_summary = (
-              df_monthly.groupby("Mesiac_Rok", as_index=False)
+              df_monthly.groupby(
+                  ["Mesiac_Kluc", "Y_num", "M_num"], as_index=False
+              )
               .agg(**agg_dict)
-              .rename(columns={"Mesiac_Rok": "Mesiac"})
+              .sort_values("Mesiac_Kluc", ascending=False)
           )
 
-          st.dataframe(
-              monthly_summary.style.format(
-                  {
-                      c: "{:.1f}"
-                      for c in monthly_summary.columns
-                      if c != "Mesiac"
-                  }
-              ),
-              use_container_width=True,
-          )
+          for _, row in monthly_summary.iterrows():
+            nazov_mesiaca = f"{sk_mesiace.get(row['M_num'], '')} {row['Y_num']}"
+
+            st.markdown(
+                f"""
+                <div style="background-color: var(--secondary-background-color); border: 1px solid rgba(150, 150, 150, 0.18); border-radius: 12px; padding: 16px 20px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.04);">
+                    <div style="font-weight: 800; font-size: 1.15em; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                        🗓️ <span>{nazov_mesiaca}</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px;">
+                        <div style="background: rgba(231, 76, 60, 0.08); padding: 10px; border-radius: 8px; text-align: center; border-left: 3px solid #e74c3c;">
+                            <div style="font-size: 0.75em; opacity: 0.8; font-weight: 600;">MAX TEPLOTA</div>
+                            <div style="font-size: 1.25em; font-weight: 800; color: #e74c3c; margin-top: 2px;">{row.get('t_max', 0):.1f} °C</div>
+                        </div>
+                        <div style="background: rgba(52, 152, 219, 0.08); padding: 10px; border-radius: 8px; text-align: center; border-left: 3px solid #3498db;">
+                            <div style="font-size: 0.75em; opacity: 0.8; font-weight: 600;">MIN TEPLOTA</div>
+                            <div style="font-size: 1.25em; font-weight: 800; color: #3498db; margin-top: 2px;">{row.get('t_min', 0):.1f} °C</div>
+                        </div>
+                        <div style="background: rgba(243, 156, 18, 0.08); padding: 10px; border-radius: 8px; text-align: center; border-left: 3px solid #f39c12;">
+                            <div style="font-size: 0.75em; opacity: 0.8; font-weight: 600;">PRIEMER</div>
+                            <div style="font-size: 1.25em; font-weight: 800; color: #f39c12; margin-top: 2px;">{row.get('t_avg', 0):.1f} °C</div>
+                        </div>
+                        <div style="background: rgba(41, 128, 185, 0.08); padding: 10px; border-radius: 8px; text-align: center; border-left: 3px solid #2980b9;">
+                            <div style="font-size: 0.75em; opacity: 0.8; font-weight: 600;">ÚHRN ZRÁŽOK</div>
+                            <div style="font-size: 1.25em; font-weight: 800; color: #2980b9; margin-top: 2px;">{row.get('r_sum', 0):.1f} mm</div>
+                        </div>
+                        <div style="background: rgba(39, 174, 96, 0.08); padding: 10px; border-radius: 8px; text-align: center; border-left: 3px solid #27ae60;">
+                            <div style="font-size: 0.75em; opacity: 0.8; font-weight: 600;">MAX VIETOR</div>
+                            <div style="font-size: 1.25em; font-weight: 800; color: #27ae60; margin-top: 2px;">{row.get('w_max', 0):.1f} km/h</div>
+                        </div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
         if w_dir_col and w_speed_col:
           st.markdown("---")
