@@ -48,7 +48,7 @@ st.markdown(
         box-shadow: 0 8px 20px rgba(0,0,0,0.1);
     }
 
-    /* Moderný horizontálny scroll pás pre 24h predpoveď (štýl mobilnej appky) */
+    /* Moderný horizontálny scroll pás pre 24h predpoveď */
     .hourly-scroll-strip {
         display: flex;
         overflow-x: auto;
@@ -65,8 +65,8 @@ st.markdown(
         border-radius: 10px;
     }
     .hourly-pill-card {
-        min-width: 82px;
-        max-width: 82px;
+        min-width: 90px;
+        max-width: 90px;
         background: var(--secondary-background-color);
         border: 1px solid rgba(150, 150, 150, 0.18);
         border-radius: 16px;
@@ -260,7 +260,7 @@ st.markdown(
     @media (max-width: 768px) {
         .weather-card { height: auto; margin-bottom: 15px; }
         .main-value, .main-value-tooltip { font-size: 1.4em; }
-        .hourly-pill-card { min-width: 76px; max-width: 76px; padding: 10px 4px; }
+        .hourly-pill-card { min-width: 82px; max-width: 82px; padding: 10px 4px; }
     }
     </style>
     """,
@@ -903,22 +903,17 @@ with tab_aktualne:
         else:
           temp_color = "#2980b9"
 
-        if p_val_num >= 0.1:
+        # Možnosť B: Ak hrozí dážď alebo je pravdepodobnosť >= 20%, zobrazujeme percentá aj milimetre spolu
+        if prob >= 20 or p_val_num > 0.0:
           rain_snippet = (
               f"<div style='background: rgba(41,128,185,0.15); color: #2980b9;"
-              f" font-size: 0.68em; font-weight: 800; border-radius: 6px;"
-              f" padding: 2px 4px; margin-top: 4px;'>💧 {p_val_num:.1f}mm</div>"
-          )
-        elif prob >= 20:
-          rain_snippet = (
-              f"<div style='background: rgba(41,128,185,0.08); color: #2980b9;"
-              f" font-size: 0.65em; font-weight: 700; border-radius: 6px;"
-              f" padding: 2px 4px; margin-top: 4px;'>💧 {prob}%</div>"
+              f" font-size: 0.64em; font-weight: 800; border-radius: 6px;"
+              f" padding: 2px 3px; margin-top: 4px; white-space: nowrap;'>💧 {prob}% ({p_val_num:.1f}mm)</div>"
           )
         else:
           rain_snippet = (
               f"<div style='font-size: 0.65em; opacity: 0.4; margin-top: 4px;'>💨"
-              f" {round(float(wind_spd))}k</div>"
+              f" {round(float(wind_spd))} km/h</div>"
           )
 
         cards_html += (
