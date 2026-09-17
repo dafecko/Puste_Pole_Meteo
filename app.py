@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import requests
 import streamlit as st
 import streamlit.components.v1 as components
@@ -46,37 +47,6 @@ st.markdown(
     .weather-card:hover {
         transform: translateY(-3px);
         box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-    }
-    
-    /* Horizontálny scrolovateľný kontajner pre 24h predpoveď */
-    .scroll-container {
-        display: flex;
-        overflow-x: auto;
-        gap: 12px;
-        padding: 10px 5px 15px 5px;
-        scroll-behavior: smooth;
-    }
-    .scroll-container::-webkit-scrollbar {
-        height: 6px;
-    }
-    .scroll-container::-webkit-scrollbar-thumb {
-        background: rgba(150, 150, 150, 0.4);
-        border-radius: 10px;
-    }
-    .mini-hourly-card {
-        min-width: 85px;
-        max-width: 85px;
-        background-color: var(--secondary-background-color);
-        border: 1px solid rgba(150, 150, 150, 0.18);
-        border-radius: 12px;
-        padding: 10px 6px;
-        text-align: center;
-        flex-shrink: 0;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
-        transition: transform 0.2s ease;
-    }
-    .mini-hourly-card:hover {
-        transform: translateY(-2px);
     }
 
     .card-title {
@@ -830,17 +800,16 @@ with tab_aktualne:
 
   st.markdown("---")
 
-  # --- HORIZONTÁLNA PREDPOVEĎ (24H) ---
-  st.subheader("⏱️ Podrobná predpoveď po hodinách (najbližších 24h)")
+  # --- GRAF HODINOVEJ PREDPOVEDE (24H) ---
+  st.subheader("⏱️ Vývoj počasia na najbližších 24 hodín")
 
   if hourly_api_data and "time" in hourly_api_data:
     times = hourly_api_data.get("time", [])
     temps = hourly_api_data.get("temperature_2m", [])
+    precips = hourly_api_data.get("precipitation", []) or [0.0] * len(times)
     probs = hourly_api_data.get("precipitation_probability", []) or [0] * len(
         times
     )
-    precips = hourly_api_data.get("precipitation", []) or [0.0] * len(times)
-    codes = hourly_api_data.get("weather_code", []) or [0] * len(times)
 
     now_hour = datetime.datetime.now(ZoneInfo("Europe/Bratislava")).strftime(
         "%Y-%m-%dT%H:00"
@@ -853,58 +822,73 @@ with tab_aktualne:
         break
 
     times_24 = times[start_idx : start_idx + 24]
-    temps_24 = temps[start_idx : start_idx + 24]
-    probs_24 = probs[start_idx : start_idx + 24]
-    precips_24 = precips[start_idx : start_idx + 24]
-    codes_24 = codes[start_idx : start_idx + 24]
+    temps_24 = [float(x) for x in temps[start_idx : start_idx + 24]]
+    precips_24 = [float(x) for x in precips[start_idx : start_idx + 24]]
+    probs_24 = [int(x) for x in probs[start_idx : start_idx + 24]]
 
     if times_24:
-      cards_html = '<div class="scroll-container">'
-      for t, temp, prob, precip, code in zip(
-          times_24, temps_24, probs_24, precips_24, codes_24
-      ):
-        try:
-          time_str = str(t).split("T")[1][:5]
-          parts = str(t).split("T")[0].split("-")
-          date_str = f"{int(parts[2])}.{int(parts[1])}."
-        except:
-          time_str, date_str = "--:--", "--.--"
+      x_labels = [str(t).split("T")[1][:5] for t in times_24]
 
-        h_icon = get_weather_icon(code)
-        try:
-          p_val_num = float(precip)
-        except:
-          p_val_num = 0.0
+      fig_hourly = make_subplots(specs=[[{"secondary_y": True}]])
 
-        if p_val_num > 0:
-          precip_html = (
-              '<div style="font-size: 0.65em; color: #3498db; font-weight: 800;'
-              f' margin-top: 1px;">{p_val_num:.1f} mm</div>'
-          )
-        elif prob >= 10:
-          precip_html = (
-              '<div style="font-size: 0.65em; color: #3498db; font-weight: 600;'
-              ' opacity: 0.7; margin-top: 1px;">&lt; 0.1 mm</div>'
-          )
-        else:
-          precip_html = (
-              '<div style="font-size: 0.65em; opacity: 0; margin-top:'
-              ' 1px;">0 mm</div>'
-          )
+      # Stĺpce očakávaných zrážok (mm)
+      fig_hourly.add_trace(
+          go.Bar(
+              x=x_labels,
+              y=precips_24,
+              name="Zrážky (mm)",
+              marker=dict(color="#3498db", opacity=0.55),
+              hovertemplate="Zrážky: <b>%{y:.1f} mm</b><extra></extra>",
+          ),
+          secondary_y=True,
+      )
 
-        cards_html += (
-            f'<div class="mini-hourly-card"><div style="font-size: 0.75em;'
-            f' font-weight: 700; opacity: 0.75;">{time_str}</div><div'
-            ' style="font-size: 0.6em; font-weight: 600; opacity: 0.5;'
-            f' margin-bottom: 2px;">{date_str}</div><div style="font-size:'
-            f' 1.4em; margin: 2px 0;">{h_icon}</div><div style="font-size:'
-            f' 1.05em; font-weight: 800;">{float(temp):.1f}°C</div><div'
-            ' style="font-size: 0.7em; opacity: 0.75; margin-top: 3px;">💧'
-            f' {prob}%</div>{precip_html}</div>'
-        )
+      # Krivka teploty so štítkami stupňov
+      fig_hourly.add_trace(
+          go.Scatter(
+              x=x_labels,
+              y=temps_24,
+              name="Teplota (°C)",
+              mode="lines+markers+text",
+              text=[f"{round(val)}°" for val in temps_24],
+              textposition="top center",
+              textfont=dict(size=11, weight="bold"),
+              line=dict(color="#e67e22", width=3, shape="spline"),
+              fill="tozeroy",
+              fillcolor="rgba(230, 126, 34, 0.08)",
+              hovertemplate="Teplota: <b>%{y:.1f} °C</b><extra></extra>",
+          ),
+          secondary_y=False,
+      )
 
-      cards_html += "</div>"
-      st.markdown(cards_html, unsafe_allow_html=True)
+      min_temp_limit = min(temps_24) - 2.5
+      max_temp_limit = max(temps_24) + 4.0
+      max_rain_limit = max(max(precips_24) * 2.2, 2.5)
+
+      fig_hourly.update_layout(
+          height=270,
+          margin=dict(l=10, r=10, t=25, b=10),
+          hovermode="x unified",
+          showlegend=False,
+      )
+      fig_hourly.update_yaxes(
+          range=[min_temp_limit, max_temp_limit],
+          visible=False,
+          secondary_y=False,
+      )
+      fig_hourly.update_yaxes(
+          range=[0, max_rain_limit], visible=False, secondary_y=True
+      )
+      fig_hourly.update_xaxes(
+          showgrid=False, tickfont=dict(size=11, weight="bold")
+      )
+
+      st.plotly_chart(
+          fig_hourly,
+          use_container_width=True,
+          theme="streamlit",
+          config={"displayModeBar": False},
+      )
     else:
       st.info("Žiadne dáta pre najbližších 24 hodín.")
   else:
@@ -912,7 +896,7 @@ with tab_aktualne:
 
   st.markdown("---")
 
-  # --- PREDPOVEĎ NA 7 DNÍ ---
+  # --- PREDPOVEĎ NA 7 DNÍ (Moderné aplikácie) ---
   st.subheader("🔮 Predpoveď počasia na najbližšie dni")
   if forecast_data and "time" in forecast_data:
     days = forecast_data.get("time", [])
@@ -938,19 +922,38 @@ with tab_aktualne:
       for i in range(num_days):
         with cols[i]:
           date_obj = datetime.datetime.strptime(days[i], "%Y-%m-%d")
-          nazov_dna = sk_dni.get(date_obj.strftime("%A"), "")
-          formatted_date = f"{nazov_dna}<br>{date_obj.day}.{date_obj.month}."
+          nazov_dna = (
+              "Dnes" if i == 0 else sk_dni.get(date_obj.strftime("%A"), "")[:3]
+          )
+          formatted_date = f"{date_obj.day}.{date_obj.month}."
 
           code_val = w_codes[i] if i < len(w_codes) else 0
           icon = get_weather_icon(code_val)
+          r_sum = float(rain_f[i])
+
+          rain_badge = (
+              "<div style='font-size: 0.72em; color: #2980b9; font-weight: 700;"
+              " background: rgba(41, 128, 185, 0.12); border-radius: 6px;"
+              f" padding: 2px 4px; margin-top: 6px;'>💧 {r_sum:.1f} mm</div>"
+              if r_sum > 0
+              else (
+                  "<div style='font-size: 0.72em; opacity: 0.45; margin-top:"
+                  " 6px;'>bez zrážok</div>"
+              )
+          )
+
           st.markdown(
               f"""
-              <div class="weather-card">
-                  <div class="card-title" style="height: 45px; line-height: 1.2;">{formatted_date}</div>
-                  <div style="font-size: 1.8em; margin: 4px 0;">{icon}</div>
-                  <div style="font-size: 0.85em; color: #e74c3c; margin: 2px 0;">Max: <b>{float(t_max_f[i]):.1f}°C</b></div>
-                  <div style="font-size: 0.85em; color: #3498db; margin: 2px 0;">Min: <b>{float(t_min_f[i]):.1f}°C</b></div>
-                  <div style="font-size: 0.8em; opacity: 0.7; margin-top: 6px;">🌧️ {float(rain_f[i]):.1f} mm</div>
+              <div style="background-color: var(--secondary-background-color); border: 1px solid rgba(150, 150, 150, 0.18); border-radius: 12px; padding: 12px 6px; text-align: center; box-shadow: 0 3px 8px rgba(0,0,0,0.04);">
+                  <div style="font-size: 0.85em; font-weight: 800; text-transform: uppercase;">{nazov_dna}</div>
+                  <div style="font-size: 0.7em; opacity: 0.6; margin-bottom: 4px;">{formatted_date}</div>
+                  <div style="font-size: 2.2em; margin: 4px 0;">{icon}</div>
+                  <div style="display: flex; justify-content: center; align-items: baseline; gap: 6px; margin-top: 6px;">
+                      <span style="font-size: 1.05em; font-weight: 800; color: #e74c3c;">{float(t_max_f[i]):.0f}°</span>
+                      <span style="font-size: 0.85em; font-weight: 600; opacity: 0.5;">/</span>
+                      <span style="font-size: 0.85em; font-weight: 700; color: #3498db;">{float(t_min_f[i]):.0f}°</span>
+                  </div>
+                  {rain_badge}
               </div>
               """,
               unsafe_allow_html=True,
