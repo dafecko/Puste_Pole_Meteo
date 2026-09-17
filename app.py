@@ -1,6 +1,6 @@
 import datetime
-from zoneinfo import ZoneInfo
 import os
+from zoneinfo import ZoneInfo
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -312,7 +312,7 @@ def deg_to_cardinal(deg):
   return "Sever"
 
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=120)
 def load_data():
   if not os.path.exists(CSV_FILE):
     return None
@@ -338,10 +338,6 @@ def load_data():
   if not col_datum or not col_cas:
     return df
 
-  # Filtrovanie prednostne na večerný celodenný zber (23:57)
-  df["Cas_clean"] = df[col_cas].astype(str).str.strip()
-  df["is_night"] = df["Cas_clean"].str.startswith("23:5")
-
   df["DateTime"] = pd.to_datetime(
       df[col_datum].astype(str) + " " + df[col_cas].astype(str),
       dayfirst=True,
@@ -349,10 +345,9 @@ def load_data():
   )
   df = df.dropna(subset=["DateTime"])
 
-  # Zoradíme tak, aby záznam o 23:57 bol pre daný deň na konci a ponecháme ho
-  df = df.sort_values(by=[col_datum, "is_night", "DateTime"])
+  # Zoradíme chronologicky a ponecháme posledný záznam dňa
+  df = df.sort_values("DateTime")
   df = df.drop_duplicates(subset=[col_datum], keep="last")
-  df = df.sort_values("DateTime").drop(columns=["Cas_clean", "is_night"])
 
   for col in df.columns:
     if col not in [col_datum, col_cas, "DateTime", "Smer vetra"]:
@@ -364,7 +359,6 @@ def load_data():
 
 @st.cache_data(ttl=1800)
 def fetch_weather_api_data(lat, lon):
-  # API endpointy s vyrovnávacou pamäťou na 30 minút
   endpoints = [
       (
           f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
@@ -951,14 +945,14 @@ with tab_aktualne:
           icon = get_weather_icon(code_val)
           st.markdown(
               f"""
-                        <div class="weather-card">
-                            <div class="card-title" style="height: 45px; line-height: 1.2;">{formatted_date}</div>
-                            <div style="font-size: 1.8em; margin: 4px 0;">{icon}</div>
-                            <div style="font-size: 0.85em; color: #e74c3c; margin: 2px 0;">Max: <b>{float(t_max_f[i]):.1f}°C</b></div>
-                            <div style="font-size: 0.85em; color: #3498db; margin: 2px 0;">Min: <b>{float(t_min_f[i]):.1f}°C</b></div>
-                            <div style="font-size: 0.8em; opacity: 0.7; margin-top: 6px;">🌧️ {float(rain_f[i]):.1f} mm</div>
-                        </div>
-                        """,
+              <div class="weather-card">
+                  <div class="card-title" style="height: 45px; line-height: 1.2;">{formatted_date}</div>
+                  <div style="font-size: 1.8em; margin: 4px 0;">{icon}</div>
+                  <div style="font-size: 0.85em; color: #e74c3c; margin: 2px 0;">Max: <b>{float(t_max_f[i]):.1f}°C</b></div>
+                  <div style="font-size: 0.85em; color: #3498db; margin: 2px 0;">Min: <b>{float(t_min_f[i]):.1f}°C</b></div>
+                  <div style="font-size: 0.8em; opacity: 0.7; margin-top: 6px;">🌧️ {float(rain_f[i]):.1f} mm</div>
+              </div>
+              """,
               unsafe_allow_html=True,
           )
 
@@ -975,12 +969,13 @@ with tab_radar:
         width="100%" 
         height="600" 
         src="https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&metricWind=km%2Fh&zoom=9&overlay=rain&product=ecmwf&level=surface&lat={LAT}&lon={LON}&detailLat={LAT}&detailLon={LON}&marker=true" 
-        frameborder="0"
+        frameborder="0" 
         style="border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"
     ></iframe>
     """
   components.html(windy_iframe_code, height=620)
 
+# --- ZÁLOŽKA: HISTÓRIA & REKORDY STANICE ---
 with tab_historia:
   df = load_data()
 
@@ -999,7 +994,6 @@ with tab_historia:
     min_d = df["DateTime"].min().date()
     max_d = df["DateTime"].max().date()
     df_filtered = df.copy()
-
     df_prev = pd.DataFrame()
 
     if "1" in volba:
@@ -1264,7 +1258,7 @@ with tab_historia:
           "🌧️ Celkové Zrážky", f"{total_rain:.1f} mm", delta=delta_rain
       )
       ecol2.metric("⛈️ Maximálne Zrážky", f"{max_rain:.1f} mm")
-      ecol3.metric("📅 Počet záznamov", f"{len(df_filtered)}")
+      ecol3.metric("📅 Počet dní v prehľade", f"{len(df_filtered)}")
 
       st.markdown("---")
 
@@ -1277,12 +1271,12 @@ with tab_historia:
       if view_mode == "📈 Grafy":
         chart_config = {"displayModeBar": False}
         layout_updates = dict(
-            height=300,
+            height=320,
             margin=dict(l=10, r=10, t=40, b=10),
             legend=dict(
                 orientation="h",
                 yanchor="bottom",
-                y=-0.4,
+                y=-0.35,
                 xanchor="center",
                 x=0.5,
             ),
@@ -1291,6 +1285,7 @@ with tab_historia:
         gcol1, gcol2 = st.columns(2)
 
         with gcol1:
+          # VYLEPŠENÉ TEPLOTNÉ PÁSMO (Min - Priemer - Max)
           fig_temp = go.Figure()
           if t_max_col:
             fig_temp.add_trace(
@@ -1298,7 +1293,8 @@ with tab_historia:
                     x=df_filtered["DateTime"],
                     y=df_filtered[t_max_col],
                     name="Max Teplota",
-                    line=dict(color="#d9534f", width=2),
+                    line=dict(color="#e74c3c", width=1.5),
+                    mode="lines",
                     hovertemplate="%{name}: <b>%{y:.1f} °C</b><extra></extra>",
                 )
             )
@@ -1308,12 +1304,28 @@ with tab_historia:
                     x=df_filtered["DateTime"],
                     y=df_filtered[t_min_col],
                     name="Min Teplota",
-                    line=dict(color="#337ab7", width=2),
+                    line=dict(color="#3498db", width=1.5),
+                    fill="tonexty",
+                    fillcolor="rgba(231, 76, 60, 0.12)",
+                    mode="lines",
+                    hovertemplate="%{name}: <b>%{y:.1f} °C</b><extra></extra>",
+                )
+            )
+          if t_avg_col:
+            fig_temp.add_trace(
+                go.Scatter(
+                    x=df_filtered["DateTime"],
+                    y=df_filtered[t_avg_col],
+                    name="Priemer",
+                    line=dict(color="#f39c12", width=2.5, dash="dot"),
+                    mode="lines",
                     hovertemplate="%{name}: <b>%{y:.1f} °C</b><extra></extra>",
                 )
             )
           fig_temp.update_layout(
-              title="🌡️ Vývoj teploty v čase", **layout_updates
+              title="🌡️ Teplotné rozpätie a denný priemer",
+              hovermode="x unified",
+              **layout_updates,
           )
           st.plotly_chart(
               fig_temp,
@@ -1322,19 +1334,37 @@ with tab_historia:
               config=chart_config,
           )
 
+          # VYLEPŠENÉ ZRÁŽKY S KUMULATÍVNOU KRIVKOU
           if r_col:
             fig_rain = go.Figure()
             fig_rain.add_trace(
                 go.Bar(
                     x=df_filtered["DateTime"],
                     y=df_filtered[r_col],
-                    name="Zrážky",
+                    name="Denný úhrn (mm)",
                     marker_color="#3498db",
                     hovertemplate="%{name}: <b>%{y:.1f} mm</b><extra></extra>",
                 )
             )
+            fig_rain.add_trace(
+                go.Scatter(
+                    x=df_filtered["DateTime"],
+                    y=df_filtered[r_col].cumsum(),
+                    name="Kumulatívne (mm)",
+                    line=dict(color="#1b4f72", width=2.2),
+                    yaxis="y2",
+                    mode="lines",
+                    hovertemplate="%{name}: <b>%{y:.1f} mm</b><extra></extra>",
+                )
+            )
             fig_rain.update_layout(
-                title="🌧️ Úhrn zrážok v čase", **layout_updates
+                title="🌧️ Denné a kumulatívne zrážky",
+                yaxis=dict(title="Denné (mm)"),
+                yaxis2=dict(
+                    title="Kumulatívne (mm)", overlaying="y", side="right"
+                ),
+                hovermode="x unified",
+                **layout_updates,
             )
             st.plotly_chart(
                 fig_rain,
@@ -1356,7 +1386,9 @@ with tab_historia:
                 )
             )
             fig_wind.update_layout(
-                title="💨 Maximálna rýchlosť vetra", **layout_updates
+                title="💨 Maximálna rýchlosť vetra",
+                hovermode="x unified",
+                **layout_updates,
             )
             st.plotly_chart(
                 fig_wind,
@@ -1377,7 +1409,9 @@ with tab_historia:
                 )
             )
             fig_hum.update_layout(
-                title="💧 Vývoj vlhkosti vzduchu", **layout_updates
+                title="💧 Vývoj vlhkosti vzduchu",
+                hovermode="x unified",
+                **layout_updates,
             )
             st.plotly_chart(
                 fig_hum,
@@ -1385,6 +1419,42 @@ with tab_historia:
                 theme="streamlit",
                 config=chart_config,
             )
+
+        # MESAČNÁ BILANCIA
+        st.markdown("---")
+        st.subheader("📅 Mesačná bilancia za vybrané obdobie")
+        df_monthly = df_filtered.copy()
+        df_monthly["Mesiac_Rok"] = df_monthly["DateTime"].dt.strftime("%m/%Y")
+
+        agg_dict = {}
+        if t_max_col:
+          agg_dict["Max Teplota (°C)"] = (t_max_col, "max")
+        if t_min_col:
+          agg_dict["Min Teplota (°C)"] = (t_min_col, "min")
+        if t_avg_col:
+          agg_dict["Priemerná Teplota (°C)"] = (t_avg_col, "mean")
+        if r_col:
+          agg_dict["Úhrn zrážok (mm)"] = (r_col, "sum")
+        if w_max_col:
+          agg_dict["Max Vietor (km/h)"] = (w_max_col, "max")
+
+        if agg_dict:
+          monthly_summary = (
+              df_monthly.groupby("Mesiac_Rok", as_index=False)
+              .agg(**agg_dict)
+              .rename(columns={"Mesiac_Rok": "Mesiac"})
+          )
+
+          st.dataframe(
+              monthly_summary.style.format(
+                  {
+                      c: "{:.1f}"
+                      for c in monthly_summary.columns
+                      if c != "Mesiac"
+                  }
+              ),
+              use_container_width=True,
+          )
 
         if w_dir_col and w_speed_col:
           st.markdown("---")
@@ -1446,7 +1516,9 @@ with tab_historia:
 
         st.dataframe(df_table, use_container_width=True)
 
-        csv_export_data = df_table.to_csv(index=False, sep=";").encode("utf-8")
+        csv_export_data = df_table.to_csv(index=False, sep=";").encode(
+            "utf-8-sig"
+        )
         st.download_button(
             label="📥 Stiahnuť vyfiltrované dáta (CSV)",
             data=csv_export_data,
