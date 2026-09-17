@@ -4,7 +4,6 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import requests
 import streamlit as st
 import streamlit.components.v1 as components
@@ -47,6 +46,48 @@ st.markdown(
     .weather-card:hover {
         transform: translateY(-3px);
         box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    }
+
+    /* Moderný horizontálny scroll pás pre 24h predpoveď (štýl mobilnej appky) */
+    .hourly-scroll-strip {
+        display: flex;
+        overflow-x: auto;
+        gap: 10px;
+        padding: 8px 4px 14px 4px;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+    .hourly-scroll-strip::-webkit-scrollbar {
+        height: 5px;
+    }
+    .hourly-scroll-strip::-webkit-scrollbar-thumb {
+        background: rgba(150, 150, 150, 0.35);
+        border-radius: 10px;
+    }
+    .hourly-pill-card {
+        min-width: 82px;
+        max-width: 82px;
+        background: var(--secondary-background-color);
+        border: 1px solid rgba(150, 150, 150, 0.18);
+        border-radius: 16px;
+        padding: 12px 6px;
+        text-align: center;
+        flex-shrink: 0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        transition: all 0.2s ease;
+    }
+    .hourly-pill-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 14px rgba(0,0,0,0.08);
+        border-color: rgba(230, 126, 34, 0.4);
+    }
+    .hourly-pill-card.current-hour {
+        background: linear-gradient(180deg, rgba(230, 126, 34, 0.12) 0%, var(--secondary-background-color) 100%);
+        border: 1.5px solid #e67e22;
     }
 
     .card-title {
@@ -219,6 +260,7 @@ st.markdown(
     @media (max-width: 768px) {
         .weather-card { height: auto; margin-bottom: 15px; }
         .main-value, .main-value-tooltip { font-size: 1.4em; }
+        .hourly-pill-card { min-width: 76px; max-width: 76px; padding: 10px 4px; }
     }
     </style>
     """,
@@ -800,12 +842,15 @@ with tab_aktualne:
 
   st.markdown("---")
 
-  # --- METEOGRAM PREDPOVEDE (24H - SHMÚ / WINDY ŠTÝL) ---
-  st.subheader("⏱️ Meteogram: Vývoj počasia na 24 hodín")
+  # --- HORIZONTÁLNA PREDPOVEĎ (24H - ELEGANTNÝ MOBILNÝ STRIP) ---
+  st.subheader("⏱️ Hodinová predpoveď (najbližších 24h)")
 
   if hourly_api_data and "time" in hourly_api_data:
     times = hourly_api_data.get("time", [])
     temps = hourly_api_data.get("temperature_2m", [])
+    probs = hourly_api_data.get("precipitation_probability", []) or [0] * len(
+        times
+    )
     precips = hourly_api_data.get("precipitation", []) or [0.0] * len(times)
     codes = hourly_api_data.get("weather_code", []) or [0] * len(times)
     winds = hourly_api_data.get("wind_speed_10m", []) or [0.0] * len(times)
@@ -821,149 +866,80 @@ with tab_aktualne:
         break
 
     times_24 = times[start_idx : start_idx + 24]
-    temps_24 = [float(x) for x in temps[start_idx : start_idx + 24]]
-    precips_24 = [float(x) for x in precips[start_idx : start_idx + 24]]
+    temps_24 = temps[start_idx : start_idx + 24]
+    probs_24 = probs[start_idx : start_idx + 24]
+    precips_24 = precips[start_idx : start_idx + 24]
     codes_24 = codes[start_idx : start_idx + 24]
-    winds_24 = [float(x) for x in winds[start_idx : start_idx + 24]]
+    winds_24 = winds[start_idx : start_idx + 24]
 
     if times_24:
-      x_labels = [str(t).split("T")[1][:5] for t in times_24]
-
-      # 2 poschodia: Horné = Teplota (70% výšky), Spodné = Zrážky a vietor (30% výšky)
-      fig_meteogram = make_subplots(
-          rows=2,
-          cols=1,
-          shared_xaxes=True,
-          vertical_spacing=0.08,
-          row_heights=[0.68, 0.32],
-      )
-
-      # --- HORNÉ POSCHODIE: TEPLOTA + IKONY POČASIA ---
-      fig_meteogram.add_trace(
-          go.Scatter(
-              x=x_labels,
-              y=temps_24,
-              mode="lines+markers",
-              line=dict(color="#f39c12", width=3, shape="spline"),
-              fill="tozeroy",
-              fillcolor="rgba(243, 156, 18, 0.12)",
-              marker=dict(size=6, color="#d35400"),
-              name="Teplota",
-              hovertemplate="Čas %{x} • Teplota: <b>%{y:.1f} °C</b><extra></extra>",
-          ),
-          row=1,
-          col=1,
-      )
-
-      # Textové štítky stupňov a ikony nad každou druhou hodinou (pre vzdušnosť)
-      for idx, (lbl, temp_val, c_code) in enumerate(
-          zip(x_labels, temps_24, codes_24)
+      cards_html = '<div class="hourly-scroll-strip">'
+      for i, (t, temp, prob, precip, code, wind_spd) in enumerate(
+          zip(times_24, temps_24, probs_24, precips_24, codes_24, winds_24)
       ):
-        icon_symbol = get_weather_icon(c_code)
-        # Ikona
-        fig_meteogram.add_annotation(
-            x=lbl,
-            y=temp_val,
-            text=icon_symbol,
-            showarrow=False,
-            yshift=24,
-            font=dict(size=14),
-            row=1,
-            col=1,
+        try:
+          time_str = str(t).split("T")[1][:5]
+          parts = str(t).split("T")[0].split("-")
+          date_str = f"{int(parts[2])}.{int(parts[1])}."
+        except:
+          time_str, date_str = "--:--", "--.--"
+
+        # Zvýraznenie prvej karty (aktuálna hodina)
+        is_first = i == 0
+        card_class = (
+            "hourly-pill-card current-hour" if is_first else "hourly-pill-card"
         )
-        # Stupne
-        fig_meteogram.add_annotation(
-            x=lbl,
-            y=temp_val,
-            text=f"<b>{round(temp_val)}°</b>",
-            showarrow=False,
-            yshift=10,
-            font=dict(size=10, color="#d35400"),
-            row=1,
-            col=1,
+        display_time = (
+            "<b style='color:#e67e22;'>Teraz</b>" if is_first else time_str
         )
 
-      # --- SPODNÉ POSCHODIE: ZRÁŽKY A VIETOR ---
-      fig_meteogram.add_trace(
-          go.Bar(
-              x=x_labels,
-              y=precips_24,
-              name="Zrážky (mm)",
-              marker=dict(
-                  color="#3498db",
-                  line=dict(color="#2980b9", width=1),
-                  opacity=0.8,
-              ),
-              hovertemplate="Zrážky: <b>%{y:.1f} mm</b><extra></extra>",
-          ),
-          row=2,
-          col=1,
-      )
+        h_icon = get_weather_icon(code)
+        t_num = float(temp)
+        p_val_num = float(precip) if precip else 0.0
 
-      # Doplnenie textu s rýchlosťou vetra pod zrážky
-      for lbl, w_spd, p_val_num in zip(x_labels, winds_24, precips_24):
-        p_label = f"{p_val_num:.1f} mm" if p_val_num > 0 else ""
-        fig_meteogram.add_annotation(
-            x=lbl,
-            y=max(p_val_num, 0.1),
-            text=f"💨{round(w_spd)}k",
-            showarrow=False,
-            yshift=12,
-            font=dict(size=9, color="#7f8c8d"),
-            row=2,
-            col=1,
-        )
+        # Farebná bodka/akcent podľa teploty
+        if t_num >= 20:
+          temp_color = "#e67e22"
+        elif t_num >= 10:
+          temp_color = "#27ae60"
+        else:
+          temp_color = "#2980b9"
 
-      # Automatické tieňovanie noci (medzi 20:00 a 06:00)
-      for idx, t_str in enumerate(times_24):
-        h_val_int = int(str(t_str).split("T")[1][:2])
-        if h_val_int >= 20 or h_val_int < 6:
-          fig_meteogram.add_vrect(
-              x0=max(0, idx - 0.5),
-              x1=min(len(times_24) - 1, idx + 0.5),
-              fillcolor="rgba(44, 62, 80, 0.06)",
-              layer="below",
-              line_width=0,
+        # Zrážkový štítok – zobrazuje sa iba ak hrozí dážď
+        if p_val_num >= 0.1:
+          rain_snippet = (
+              "<div style='background: rgba(41,128,185,0.15); color: #2980b9;"
+              " font-size: 0.68em; font-weight: 800; border-radius: 6px;"
+              f" padding: 2px 4px; margin-top: 4px;'>💧 {p_val_num:.1f}mm</div>"
+          )
+        elif prob >= 20:
+          rain_snippet = (
+              "<div style='background: rgba(41,128,185,0.08); color: #2980b9;"
+              " font-size: 0.65em; font-weight: 700; border-radius: 6px;"
+              f" padding: 2px 4px; margin-top: 4px;'>💧 {prob}%</div>"
+          )
+        else:
+          rain_snippet = (
+              "<div style='font-size: 0.65em; opacity: 0.4; margin-top: 4px;'>💨"
+              f" {round(float(wind_spd))}k</div>"
           )
 
-      min_t = min(temps_24) - 3.5
-      max_t = max(temps_24) + 5.0
-      max_r = max(max(precips_24) * 1.8, 2.0)
+        cards_html += f"""
+                <div class="{card_class}">
+                    <div>
+                        <div style="font-size: 0.82em; font-weight: 700;">{display_time}</div>
+                        <div style="font-size: 0.65em; opacity: 0.55; margin-top: 1px;">{date_str}</div>
+                    </div>
+                    <div style="font-size: 1.85em; margin: 4px 0;">{h_icon}</div>
+                    <div>
+                        <div style="font-size: 1.1em; font-weight: 800; color: {temp_color};">{t_num:.0f}°</div>
+                        {rain_snippet}
+                    </div>
+                </div>
+                """
 
-      fig_meteogram.update_yaxes(
-          range=[min_t, max_t],
-          title_text="Teplota (°C)",
-          showgrid=True,
-          gridcolor="rgba(150,150,150,0.15)",
-          row=1,
-          col=1,
-      )
-      fig_meteogram.update_yaxes(
-          range=[0, max_r],
-          title_text="Dážď (mm)",
-          showgrid=True,
-          gridcolor="rgba(150,150,150,0.15)",
-          row=2,
-          col=1,
-      )
-      fig_meteogram.update_xaxes(
-          showgrid=False, tickfont=dict(size=11, weight="bold"), row=2, col=1
-      )
-      fig_meteogram.update_xaxes(showgrid=False, row=1, col=1)
-
-      fig_meteogram.update_layout(
-          height=360,
-          margin=dict(l=40, r=20, t=20, b=20),
-          hovermode="x unified",
-          showlegend=False,
-      )
-
-      st.plotly_chart(
-          fig_meteogram,
-          use_container_width=True,
-          theme="streamlit",
-          config={"displayModeBar": False},
-      )
+      cards_html += "</div>"
+      st.markdown(cards_html, unsafe_allow_html=True)
     else:
       st.info("Žiadne dáta pre najbližších 24 hodín.")
   else:
