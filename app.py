@@ -357,7 +357,7 @@ def load_data():
   )
   df = df.dropna(subset=["DateTime"])
 
-  # Zoradíme chronologicky a ponecháme posledný záznam dňa
+  # Chronologické triedenie s ponechaním posledného záznamu dňa
   df = df.sort_values("DateTime")
   df = df.drop_duplicates(subset=[col_datum], keep="last")
 
@@ -884,7 +884,6 @@ with tab_aktualne:
         except:
           time_str, date_str = "--:--", "--.--"
 
-        # Zvýraznenie prvej karty (aktuálna hodina)
         is_first = i == 0
         card_class = (
             "hourly-pill-card current-hour" if is_first else "hourly-pill-card"
@@ -897,7 +896,6 @@ with tab_aktualne:
         t_num = float(temp)
         p_val_num = float(precip) if precip else 0.0
 
-        # Farebná bodka/akcent podľa teploty
         if t_num >= 20:
           temp_color = "#e67e22"
         elif t_num >= 10:
@@ -905,38 +903,33 @@ with tab_aktualne:
         else:
           temp_color = "#2980b9"
 
-        # Zrážkový štítok – zobrazuje sa iba ak hrozí dážď
         if p_val_num >= 0.1:
           rain_snippet = (
-              "<div style='background: rgba(41,128,185,0.15); color: #2980b9;"
-              " font-size: 0.68em; font-weight: 800; border-radius: 6px;"
+              f"<div style='background: rgba(41,128,185,0.15); color: #2980b9;"
+              f" font-size: 0.68em; font-weight: 800; border-radius: 6px;"
               f" padding: 2px 4px; margin-top: 4px;'>💧 {p_val_num:.1f}mm</div>"
           )
         elif prob >= 20:
           rain_snippet = (
-              "<div style='background: rgba(41,128,185,0.08); color: #2980b9;"
-              " font-size: 0.65em; font-weight: 700; border-radius: 6px;"
+              f"<div style='background: rgba(41,128,185,0.08); color: #2980b9;"
+              f" font-size: 0.65em; font-weight: 700; border-radius: 6px;"
               f" padding: 2px 4px; margin-top: 4px;'>💧 {prob}%</div>"
           )
         else:
           rain_snippet = (
-              "<div style='font-size: 0.65em; opacity: 0.4; margin-top: 4px;'>💨"
+              f"<div style='font-size: 0.65em; opacity: 0.4; margin-top: 4px;'>💨"
               f" {round(float(wind_spd))}k</div>"
           )
 
-        cards_html += f"""
-                <div class="{card_class}">
-                    <div>
-                        <div style="font-size: 0.82em; font-weight: 700;">{display_time}</div>
-                        <div style="font-size: 0.65em; opacity: 0.55; margin-top: 1px;">{date_str}</div>
-                    </div>
-                    <div style="font-size: 1.85em; margin: 4px 0;">{h_icon}</div>
-                    <div>
-                        <div style="font-size: 1.1em; font-weight: 800; color: {temp_color};">{t_num:.0f}°</div>
-                        {rain_snippet}
-                    </div>
-                </div>
-                """
+        cards_html += (
+            f'<div class="{card_class}">'
+            f"<div><div style='font-size: 0.82em; font-weight: 700;'>{display_time}</div>"
+            f"<div style='font-size: 0.65em; opacity: 0.55; margin-top: 1px;'>{date_str}</div></div>"
+            f"<div style='font-size: 1.85em; margin: 4px 0;'>{h_icon}</div>"
+            f"<div><div style='font-size: 1.1em; font-weight: 800; color: {temp_color};'>{t_num:.0f}°</div>"
+            f"{rain_snippet}</div>"
+            f"</div>"
+        )
 
       cards_html += "</div>"
       st.markdown(cards_html, unsafe_allow_html=True)
@@ -1339,7 +1332,6 @@ with tab_historia:
         gcol1, gcol2 = st.columns(2)
 
         with gcol1:
-          # VYLEPŠENÉ TEPLOTNÉ PÁSMO (Min - Priemer - Max)
           fig_temp = go.Figure()
           if t_max_col:
             fig_temp.add_trace(
@@ -1388,7 +1380,6 @@ with tab_historia:
               config=chart_config,
           )
 
-          # VYLEPŠENÉ ZRÁŽKY S KUMULATÍVNOU KRIVKOU
           if r_col:
             fig_rain = go.Figure()
             fig_rain.add_trace(
