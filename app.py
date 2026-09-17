@@ -800,16 +800,15 @@ with tab_aktualne:
 
   st.markdown("---")
 
-  # --- GRAF HODINOVEJ PREDPOVEDE (24H) ---
-  st.subheader("⏱️ Vývoj počasia na najbližších 24 hodín")
+  # --- METEOGRAM PREDPOVEDE (24H - SHMÚ / WINDY ŠTÝL) ---
+  st.subheader("⏱️ Meteogram: Vývoj počasia na 24 hodín")
 
   if hourly_api_data and "time" in hourly_api_data:
     times = hourly_api_data.get("time", [])
     temps = hourly_api_data.get("temperature_2m", [])
     precips = hourly_api_data.get("precipitation", []) or [0.0] * len(times)
-    probs = hourly_api_data.get("precipitation_probability", []) or [0] * len(
-        times
-    )
+    codes = hourly_api_data.get("weather_code", []) or [0] * len(times)
+    winds = hourly_api_data.get("wind_speed_10m", []) or [0.0] * len(times)
 
     now_hour = datetime.datetime.now(ZoneInfo("Europe/Bratislava")).strftime(
         "%Y-%m-%dT%H:00"
@@ -824,67 +823,143 @@ with tab_aktualne:
     times_24 = times[start_idx : start_idx + 24]
     temps_24 = [float(x) for x in temps[start_idx : start_idx + 24]]
     precips_24 = [float(x) for x in precips[start_idx : start_idx + 24]]
-    probs_24 = [int(x) for x in probs[start_idx : start_idx + 24]]
+    codes_24 = codes[start_idx : start_idx + 24]
+    winds_24 = [float(x) for x in winds[start_idx : start_idx + 24]]
 
     if times_24:
       x_labels = [str(t).split("T")[1][:5] for t in times_24]
 
-      fig_hourly = make_subplots(specs=[[{"secondary_y": True}]])
+      # 2 poschodia: Horné = Teplota (70% výšky), Spodné = Zrážky a vietor (30% výšky)
+      fig_meteogram = make_subplots(
+          rows=2,
+          cols=1,
+          shared_xaxes=True,
+          vertical_spacing=0.08,
+          row_heights=[0.68, 0.32],
+      )
 
-      # Stĺpce očakávaných zrážok (mm)
-      fig_hourly.add_trace(
+      # --- HORNÉ POSCHODIE: TEPLOTA + IKONY POČASIA ---
+      fig_meteogram.add_trace(
+          go.Scatter(
+              x=x_labels,
+              y=temps_24,
+              mode="lines+markers",
+              line=dict(color="#f39c12", width=3, shape="spline"),
+              fill="tozeroy",
+              fillcolor="rgba(243, 156, 18, 0.12)",
+              marker=dict(size=6, color="#d35400"),
+              name="Teplota",
+              hovertemplate="Čas %{x} • Teplota: <b>%{y:.1f} °C</b><extra></extra>",
+          ),
+          row=1,
+          col=1,
+      )
+
+      # Textové štítky stupňov a ikony nad každou druhou hodinou (pre vzdušnosť)
+      for idx, (lbl, temp_val, c_code) in enumerate(
+          zip(x_labels, temps_24, codes_24)
+      ):
+        icon_symbol = get_weather_icon(c_code)
+        # Ikona
+        fig_meteogram.add_annotation(
+            x=lbl,
+            y=temp_val,
+            text=icon_symbol,
+            showarrow=False,
+            yshift=24,
+            font=dict(size=14),
+            row=1,
+            col=1,
+        )
+        # Stupne
+        fig_meteogram.add_annotation(
+            x=lbl,
+            y=temp_val,
+            text=f"<b>{round(temp_val)}°</b>",
+            showarrow=False,
+            yshift=10,
+            font=dict(size=10, color="#d35400"),
+            row=1,
+            col=1,
+        )
+
+      # --- SPODNÉ POSCHODIE: ZRÁŽKY A VIETOR ---
+      fig_meteogram.add_trace(
           go.Bar(
               x=x_labels,
               y=precips_24,
               name="Zrážky (mm)",
-              marker=dict(color="#3498db", opacity=0.55),
+              marker=dict(
+                  color="#3498db",
+                  line=dict(color="#2980b9", width=1),
+                  opacity=0.8,
+              ),
               hovertemplate="Zrážky: <b>%{y:.1f} mm</b><extra></extra>",
           ),
-          secondary_y=True,
+          row=2,
+          col=1,
       )
 
-      # Krivka teploty so štítkami stupňov
-      fig_hourly.add_trace(
-          go.Scatter(
-              x=x_labels,
-              y=temps_24,
-              name="Teplota (°C)",
-              mode="lines+markers+text",
-              text=[f"{round(val)}°" for val in temps_24],
-              textposition="top center",
-              textfont=dict(size=11, weight="bold"),
-              line=dict(color="#e67e22", width=3, shape="spline"),
-              fill="tozeroy",
-              fillcolor="rgba(230, 126, 34, 0.08)",
-              hovertemplate="Teplota: <b>%{y:.1f} °C</b><extra></extra>",
-          ),
-          secondary_y=False,
+      # Doplnenie textu s rýchlosťou vetra pod zrážky
+      for lbl, w_spd, p_val_num in zip(x_labels, winds_24, precips_24):
+        p_label = f"{p_val_num:.1f} mm" if p_val_num > 0 else ""
+        fig_meteogram.add_annotation(
+            x=lbl,
+            y=max(p_val_num, 0.1),
+            text=f"💨{round(w_spd)}k",
+            showarrow=False,
+            yshift=12,
+            font=dict(size=9, color="#7f8c8d"),
+            row=2,
+            col=1,
+        )
+
+      # Automatické tieňovanie noci (medzi 20:00 a 06:00)
+      for idx, t_str in enumerate(times_24):
+        h_val_int = int(str(t_str).split("T")[1][:2])
+        if h_val_int >= 20 or h_val_int < 6:
+          fig_meteogram.add_vrect(
+              x0=max(0, idx - 0.5),
+              x1=min(len(times_24) - 1, idx + 0.5),
+              fillcolor="rgba(44, 62, 80, 0.06)",
+              layer="below",
+              line_width=0,
+          )
+
+      min_t = min(temps_24) - 3.5
+      max_t = max(temps_24) + 5.0
+      max_r = max(max(precips_24) * 1.8, 2.0)
+
+      fig_meteogram.update_yaxes(
+          range=[min_t, max_t],
+          title_text="Teplota (°C)",
+          showgrid=True,
+          gridcolor="rgba(150,150,150,0.15)",
+          row=1,
+          col=1,
       )
+      fig_meteogram.update_yaxes(
+          range=[0, max_r],
+          title_text="Dážď (mm)",
+          showgrid=True,
+          gridcolor="rgba(150,150,150,0.15)",
+          row=2,
+          col=1,
+      )
+      fig_meteogram.update_xaxes(
+          showgrid=False, tickfont=dict(size=11, weight="bold"), row=2, col=1
+      )
+      fig_meteogram.update_xaxes(showgrid=False, row=1, col=1)
 
-      min_temp_limit = min(temps_24) - 2.5
-      max_temp_limit = max(temps_24) + 4.0
-      max_rain_limit = max(max(precips_24) * 2.2, 2.5)
-
-      fig_hourly.update_layout(
-          height=270,
-          margin=dict(l=10, r=10, t=25, b=10),
+      fig_meteogram.update_layout(
+          height=360,
+          margin=dict(l=40, r=20, t=20, b=20),
           hovermode="x unified",
           showlegend=False,
       )
-      fig_hourly.update_yaxes(
-          range=[min_temp_limit, max_temp_limit],
-          visible=False,
-          secondary_y=False,
-      )
-      fig_hourly.update_yaxes(
-          range=[0, max_rain_limit], visible=False, secondary_y=True
-      )
-      fig_hourly.update_xaxes(
-          showgrid=False, tickfont=dict(size=11, weight="bold")
-      )
 
       st.plotly_chart(
-          fig_hourly,
+          fig_meteogram,
           use_container_width=True,
           theme="streamlit",
           config={"displayModeBar": False},
@@ -896,7 +971,7 @@ with tab_aktualne:
 
   st.markdown("---")
 
-  # --- PREDPOVEĎ NA 7 DNÍ (Moderné aplikácie) ---
+  # --- PREDPOVEĎ NA 7 DNÍ ---
   st.subheader("🔮 Predpoveď počasia na najbližšie dni")
   if forecast_data and "time" in forecast_data:
     days = forecast_data.get("time", [])
