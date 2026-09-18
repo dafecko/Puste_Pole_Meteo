@@ -257,20 +257,58 @@ st.markdown(
     .alert-title { font-weight: bold; font-size: 1.05em; margin-bottom: 2px; }
     .alert-desc { font-size: 0.88em; opacity: 0.95; }
 
-    /* Rámik filtra nad grafmi */
+    /* Rámik a štýly pre kompaktný panel filtra a štatistických kariet */
     .filter-box {
         background-color: var(--secondary-background-color);
         border: 1px solid rgba(150, 150, 150, 0.18);
         border-radius: 12px;
-        padding: 14px 18px 6px 18px;
-        margin-bottom: 20px;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.04);
+        padding: 12px 18px;
+        margin-bottom: 18px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
     }
+    .stat-card {
+        background-color: var(--secondary-background-color);
+        border: 1px solid rgba(150, 150, 150, 0.18);
+        border-radius: 12px;
+        padding: 14px 8px;
+        text-align: center;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.04);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 110px;
+        transition: transform 0.2s ease;
+    }
+    .stat-card:hover {
+        transform: translateY(-2px);
+    }
+    .stat-label { 
+        font-size: 0.74em; 
+        font-weight: 700; 
+        opacity: 0.75; 
+        text-transform: uppercase; 
+        letter-spacing: 0.3px;
+    }
+    .stat-val { 
+        font-size: 1.45em; 
+        font-weight: 800; 
+        margin: 3px 0; 
+    }
+    .stat-delta { 
+        font-size: 0.72em; 
+        font-weight: 700; 
+        border-radius: 5px; 
+        padding: 2px 6px; 
+        display: inline-block; 
+    }
+    .delta-up { background: rgba(46, 204, 113, 0.15); color: #27ae60; }
+    .delta-down { background: rgba(231, 76, 60, 0.15); color: #e74c3c; }
 
     @media (max-width: 768px) {
         .weather-card { height: auto; margin-bottom: 15px; }
         .main-value, .main-value-tooltip { font-size: 1.4em; }
         .hourly-pill-card { min-width: 76px; max-width: 76px; padding: 10px 4px; }
+        .stat-card { height: auto; margin-bottom: 10px; }
     }
     </style>
     """,
@@ -1134,111 +1172,120 @@ with tab_historia:
 
     st.markdown("---")
 
-    # --- 2. VÝBER OBDOBIA PRIAMO NA STRÁNKE (NAD GRAFMI) ---
-    st.markdown(
-        """
-        <div class="filter-box">
-            <span style="font-weight: 800; font-size: 1.05em;">⚙️ Výber sledovaného obdobia:</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
+    # --- 2. VÝBER OBDOBIA PRIAMO NA STRÁNKE (KOMPAKTNÝ PANEL) ---
     min_d = df["DateTime"].min().date()
     max_d = df["DateTime"].max().date()
     df_filtered = df.copy()
     df_prev = pd.DataFrame()
 
-    f_col1, f_col2, f_col3 = st.columns([2, 1, 1])
-
-    with f_col1:
-      volba = st.radio(
-          "Typ filtra:",
-          [
-              "Posledných 7 dní",
-              "Konkrétny mesiac a rok",
-              "Konkrétny rok",
-              "Vlastné obdobie",
-          ],
-          horizontal=True,
-          label_visibility="collapsed",
+    with st.container():
+      st.markdown(
+          """
+            <div class="filter-box">
+                <div style="font-weight: 800; font-size: 0.9em; margin-bottom: 6px; opacity: 0.85;">⚙️ Sledované obdobie:</div>
+            </div>
+            """,
+          unsafe_allow_html=True,
       )
 
-    if volba == "Posledných 7 dní":
-      datum_do = max_d
-      datum_od = max_d - datetime.timedelta(days=6)
-      df_filtered = df_filtered[
-          (df_filtered["DateTime"].dt.date >= datum_od)
-          & (df_filtered["DateTime"].dt.date <= datum_do)
-      ]
-      prev_datum_do = datum_od - datetime.timedelta(days=1)
-      prev_datum_od = prev_datum_do - datetime.timedelta(days=6)
-      df_prev = df[
-          (df["DateTime"].dt.date >= prev_datum_od)
-          & (df["DateTime"].dt.date <= prev_datum_do)
-      ]
+      f_col1, f_col2, f_col3 = st.columns([2.2, 1, 1])
 
-    elif volba == "Konkrétny mesiac a rok":
-      dostupne_roky = sorted(df["DateTime"].dt.year.unique(), reverse=True)
-      with f_col2:
-        vybrany_rok = st.selectbox("Rok", dostupne_roky)
-      with f_col3:
-        vybrany_mesiac = st.selectbox(
-            "Mesiac",
-            list(range(1, 13)),
-            index=datetime.date.today().month - 1,
-            format_func=lambda x: [
-                "Január",
-                "Február",
-                "Marec",
-                "Apríl",
-                "Máj",
-                "Jún",
-                "Júl",
-                "August",
-                "September",
-                "Október",
-                "November",
-                "December",
-            ][x - 1],
+      with f_col1:
+        volba = st.radio(
+            "Typ filtra:",
+            [
+                "Posledných 7 dní",
+                "Konkrétny mesiac a rok",
+                "Konkrétny rok",
+                "Vlastné obdobie",
+            ],
+            horizontal=True,
+            label_visibility="collapsed",
         )
-      df_filtered = df_filtered[
-          (df_filtered["DateTime"].dt.year == vybrany_rok)
-          & (df_filtered["DateTime"].dt.month == vybrany_mesiac)
-      ]
-      prev_month = vybrany_mesiac - 1 if vybrany_mesiac > 1 else 12
-      prev_year = vybrany_rok if vybrany_mesiac > 1 else vybrany_rok - 1
-      df_prev = df[
-          (df["DateTime"].dt.year == prev_year)
-          & (df["DateTime"].dt.month == prev_month)
-      ]
 
-    elif volba == "Konkrétny rok":
-      dostupne_roky = sorted(df["DateTime"].dt.year.unique(), reverse=True)
-      with f_col2:
-        vybrany_rok = st.selectbox("Rok", dostupne_roky)
-      df_filtered = df_filtered[df_filtered["DateTime"].dt.year == vybrany_rok]
-      df_prev = df[df["DateTime"].dt.year == vybrany_rok - 1]
+      if volba == "Posledných 7 dní":
+        datum_do = max_d
+        datum_od = max_d - datetime.timedelta(days=6)
+        df_filtered = df_filtered[
+            (df_filtered["DateTime"].dt.date >= datum_od)
+            & (df_filtered["DateTime"].dt.date <= datum_do)
+        ]
+        prev_datum_do = datum_od - datetime.timedelta(days=1)
+        prev_datum_od = prev_datum_do - datetime.timedelta(days=6)
+        df_prev = df[
+            (df["DateTime"].dt.date >= prev_datum_od)
+            & (df["DateTime"].dt.date <= prev_datum_do)
+        ]
 
-    elif volba == "Vlastné obdobie":
-      with f_col2:
-        datum_od = st.date_input("Od", min_d)
-      with f_col3:
-        datum_do = st.date_input("Do", max_d)
-      df_filtered = df_filtered[
-          (df_filtered["DateTime"].dt.date >= datum_od)
-          & (df_filtered["DateTime"].dt.date <= datum_do)
-      ]
-      delta_dni = (datum_do - datum_od).days + 1
-      prev_datum_do = datum_od - datetime.timedelta(days=1)
-      prev_datum_od = prev_datum_do - datetime.timedelta(days=delta_dni - 1)
-      df_prev = df[
-          (df["DateTime"].dt.date >= prev_datum_od)
-          & (df["DateTime"].dt.date <= prev_datum_do)
-      ]
+      elif volba == "Konkrétny mesiac a rok":
+        dostupne_roky = sorted(df["DateTime"].dt.year.unique(), reverse=True)
+        with f_col2:
+          vybrany_rok = st.selectbox("Rok", dostupne_roky)
+        with f_col3:
+          vybrany_mesiac = st.selectbox(
+              "Mesiac",
+              list(range(1, 13)),
+              index=datetime.date.today().month - 1,
+              format_func=lambda x: [
+                  "Január",
+                  "Február",
+                  "Marec",
+                  "Apríl",
+                  "Máj",
+                  "Jún",
+                  "Júl",
+                  "August",
+                  "September",
+                  "Október",
+                  "November",
+                  "December",
+              ][x - 1],
+          )
+        df_filtered = df_filtered[
+            (df_filtered["DateTime"].dt.year == vybrany_rok)
+            & (df_filtered["DateTime"].dt.month == vybrany_mesiac)
+        ]
+        prev_month = vybrany_mesiac - 1 if vybrany_mesiac > 1 else 12
+        prev_year = vybrany_rok if vybrany_mesiac > 1 else vybrany_rok - 1
+        df_prev = df[
+            (df["DateTime"].dt.year == prev_year)
+            & (df["DateTime"].dt.month == prev_month)
+        ]
 
-    # --- 3. ŠTATISTIKY ZA VYBRANÉ OBDOBIE ---
-    st.subheader("📊 Štatistiky a vývoj za vybrané obdobie")
+      elif volba == "Konkrétny rok":
+        dostupne_roky = sorted(df["DateTime"].dt.year.unique(), reverse=True)
+        with f_col2:
+          vybrany_rok = st.selectbox("Rok", dostupne_roky)
+        df_filtered = df_filtered[
+            df_filtered["DateTime"].dt.year == vybrany_rok
+        ]
+        df_prev = df[df["DateTime"].dt.year == vybrany_rok - 1]
+
+      elif volba == "Vlastné obdobie":
+        with f_col2:
+          datum_od = st.date_input("Od", min_d)
+        with f_col3:
+          datum_do = st.date_input("Do", max_d)
+        df_filtered = df_filtered[
+            (df_filtered["DateTime"].dt.date >= datum_od)
+            & (df_filtered["DateTime"].dt.date <= datum_do)
+        ]
+        delta_dni = (datum_do - datum_od).days + 1
+        prev_datum_do = datum_od - datetime.timedelta(days=1)
+        prev_datum_od = prev_datum_do - datetime.timedelta(days=delta_dni - 1)
+        df_prev = df[
+            (df["DateTime"].dt.date >= prev_datum_od)
+            & (df["DateTime"].dt.date <= prev_datum_do)
+        ]
+
+    # --- 3. ŠTATISTIKY V PREHĽADNÝCH KARTÁCH ---
+    dni_pocet = len(df_filtered)
+    sk_dni_koncovka = (
+        "dní" if dni_pocet >= 5 else ("dni" if dni_pocet > 1 else "deň")
+    )
+    st.subheader(
+        f"📊 Štatistiky za vybrané obdobie ({dni_pocet} {sk_dni_koncovka})"
+    )
 
     if not df_filtered.empty:
       max_temp = (
@@ -1272,67 +1319,112 @@ with tab_historia:
           else 0
       )
 
-      delta_max_t, delta_min_t, delta_avg_t, delta_wind, delta_rain = (
-          None,
-          None,
-          None,
-          None,
-          None,
+      # Pomocná funkcia na vykreslenie odchýlky (delta)
+      def render_delta(diff, unit):
+        if diff is None:
+          return (
+              "<span style='font-size:0.7em; opacity:0.35;'>— bez porovnania"
+              "</span>"
+          )
+        cls = "delta-down" if diff < 0 else "delta-up"
+        arrow = "↓" if diff < 0 else "↑"
+        return f"<span class='stat-delta {cls}'>{arrow} {diff:+.1f} {unit}</span>"
+
+      diff_max_t = (
+          (max_temp - df_prev[t_max_col].max())
+          if not df_prev.empty
+          and t_max_col
+          and not df_prev[t_max_col].isna().all()
+          else None
       )
-      if not df_prev.empty:
-        prev_max_temp = (
-            df_prev[t_max_col].max()
-            if t_max_col and not df_prev[t_max_col].isna().all()
-            else None
-        )
-        prev_min_temp = (
-            df_prev[t_min_col].min()
-            if t_min_col and not df_prev[t_min_col].isna().all()
-            else None
-        )
-        prev_avg_temp = (
-            df_prev[t_avg_col].mean()
-            if t_avg_col and not df_prev[t_avg_col].isna().all()
-            else None
-        )
-        prev_max_wind = (
-            df_prev[w_max_col].max()
-            if w_max_col and not df_prev[w_max_col].isna().all()
-            else None
-        )
-        prev_total_rain = (
-            df_prev[r_col].sum()
-            if r_col and not df_prev[r_col].isna().all()
-            else None
-        )
-
-        if prev_max_temp is not None:
-          delta_max_t = f"{max_temp - prev_max_temp:+.1f} °C vs min. obdobie"
-        if prev_min_temp is not None:
-          delta_min_t = f"{min_temp - prev_min_temp:+.1f} °C vs min. obdobie"
-        if prev_avg_temp is not None:
-          delta_avg_t = f"{avg_temp - prev_avg_temp:+.1f} °C vs min. obdobie"
-        if prev_max_wind is not None:
-          delta_wind = f"{max_wind - prev_max_wind:+.1f} km/h vs min. obdobie"
-        if prev_total_rain is not None:
-          delta_rain = f"{total_rain - prev_total_rain:+.1f} mm vs min. obdobie"
-
-      col1, col2, col3, col4 = st.columns(4)
-      col1.metric("📈 Max Teplota", f"{max_temp:.1f} °C", delta=delta_max_t)
-      col2.metric("📉 Min Teplota", f"{min_temp:.1f} °C", delta=delta_min_t)
-      col3.metric(
-          "🌡️ Priemerná Teplota", f"{avg_temp:.1f} °C", delta=delta_avg_t
+      diff_min_t = (
+          (min_temp - df_prev[t_min_col].min())
+          if not df_prev.empty
+          and t_min_col
+          and not df_prev[t_min_col].isna().all()
+          else None
       )
-      col4.metric("💨 Max Vietor", f"{max_wind:.1f} km/h", delta=delta_wind)
-
-      ecol1, ecol2, ecol3 = st.columns(3)
-      ecol1.metric(
-          "🌧️ Celkové Zrážky", f"{total_rain:.1f} mm", delta=delta_rain
+      diff_avg_t = (
+          (avg_temp - df_prev[t_avg_col].mean())
+          if not df_prev.empty
+          and t_avg_col
+          and not df_prev[t_avg_col].isna().all()
+          else None
       )
-      ecol2.metric("⛈️ Maximálne Zrážky", f"{max_rain:.1f} mm")
-      ecol3.metric("📅 Počet dní v prehľade", f"{len(df_filtered)}")
+      diff_wind = (
+          (max_wind - df_prev[w_max_col].max())
+          if not df_prev.empty
+          and w_max_col
+          and not df_prev[w_max_col].isna().all()
+          else None
+      )
+      diff_rain = (
+          (total_rain - df_prev[r_col].sum())
+          if not df_prev.empty and r_col and not df_prev[r_col].isna().all()
+          else None
+      )
 
-      st.markdown("---")
+      # 6 kariet vedľa seba v jednom čistom rade
+      sc1, sc2, sc3, sc4, sc5, sc6 = st.columns(6)
+
+      with sc1:
+        st.markdown(
+            f"""<div class="stat-card" style="border-top: 3.5px solid #e74c3c;">
+                <div class="stat-label">📈 Max Teplota</div>
+                <div class="stat-val" style="color:#e74c3c;">{max_temp:.1f} °C</div>
+                <div>{render_delta(diff_max_t, '°C')}</div>
+            </div>""",
+            unsafe_allow_html=True,
+        )
+      with sc2:
+        st.markdown(
+            f"""<div class="stat-card" style="border-top: 3.5px solid #3498db;">
+                <div class="stat-label">📉 Min Teplota</div>
+                <div class="stat-val" style="color:#3498db;">{min_temp:.1f} °C</div>
+                <div>{render_delta(diff_min_t, '°C')}</div>
+            </div>""",
+            unsafe_allow_html=True,
+        )
+      with sc3:
+        st.markdown(
+            f"""<div class="stat-card" style="border-top: 3.5px solid #f39c12;">
+                <div class="stat-label">🌡️ Priemer</div>
+                <div class="stat-val" style="color:#f39c12;">{avg_temp:.1f} °C</div>
+                <div>{render_delta(diff_avg_t, '°C')}</div>
+            </div>""",
+            unsafe_allow_html=True,
+        )
+      with sc4:
+        st.markdown(
+            f"""<div class="stat-card" style="border-top: 3.5px solid #27ae60;">
+                <div class="stat-label">💨 Max Vietor</div>
+                <div class="stat-val" style="color:#27ae60;">{max_wind:.1f} <span style="font-size:0.65em;">km/h</span></div>
+                <div>{render_delta(diff_wind, 'k')}</div>
+            </div>""",
+            unsafe_allow_html=True,
+        )
+      with sc5:
+        st.markdown(
+            f"""<div class="stat-card" style="border-top: 3.5px solid #2980b9;">
+                <div class="stat-label">🌧️ Úhrn Zrážok</div>
+                <div class="stat-val" style="color:#2980b9;">{total_rain:.1f} <span style="font-size:0.65em;">mm</span></div>
+                <div>{render_delta(diff_rain, 'mm')}</div>
+            </div>""",
+            unsafe_allow_html=True,
+        )
+      with sc6:
+        st.markdown(
+            f"""<div class="stat-card" style="border-top: 3.5px solid #9b59b6;">
+                <div class="stat-label">⛈️ Max Denné Zrážky</div>
+                <div class="stat-val" style="color:#9b59b6;">{max_rain:.1f} <span style="font-size:0.65em;">mm</span></div>
+                <div style="font-size:0.7em; opacity:0.5; font-weight:700;">denný rekord</div>
+            </div>""",
+            unsafe_allow_html=True,
+        )
+
+      st.markdown(
+          "<div style='margin-bottom:15px;'></div>", unsafe_allow_html=True
+      )
 
       view_mode = st.radio(
           "Zvoliť spôsob zobrazenia údajov:",
