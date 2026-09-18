@@ -48,7 +48,7 @@ st.markdown(
         box-shadow: 0 8px 20px rgba(0,0,0,0.1);
     }
 
-    /* Moderný horizontálny scroll pás pre 24h predpoveď */
+    /* Horizontálny scroll pás pre 24h predpoveď */
     .hourly-scroll-strip {
         display: flex;
         overflow-x: auto;
@@ -664,7 +664,7 @@ else:
 # --- HLAVNÉ ZÁLOŽKY ---
 tab_aktualne, tab_radar, tab_historia = st.tabs([
     "🌤️ Aktuálne počasie & Predpoveď",
-    "📡 Živý zrážkový radar",
+    "📡 Živý meteoradar",
     "📊 História & Rekordy stanice",
 ])
 
@@ -1050,19 +1050,27 @@ with tab_aktualne:
               unsafe_allow_html=True,
           )
 
-# --- ZÁLOŽKA: ŽIVÝ ZRÁŽKOVÝ RADAR ---
+# --- ZÁLOŽKA: ŽIVÝ METEORADAR (POČASIE & RADAR WIDGET) ---
 with tab_radar:
-  st.subheader("📡 Živý zrážkový radar a krátkodobá predpoveď")
+  st.subheader("📡 Meteoradar & Oblačnosť (Počasie & Radar)")
   st.caption(
-      "Pusté Pole a okolie • Postup zrážok s možnosťou posunu v čase na"
-      " najbližšie hodiny."
+      "Živý postup zrážok, búrok a oblačnosti s možnosťou prehrávania • Pusté"
+      " Pole a okolie"
   )
 
-  st.components.v1.iframe(
-      f"https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&metricWind=km%2Fh&zoom=9&overlay=rain&product=ecmwf&level=surface&lat={LAT}&lon={LON}&detailLat={LAT}&detailLon={LON}&marker=true",
-      height=620,
-      scrolling=False,
-  )
+  pocasie_radar_html = f"""
+    <div style="display: flex; justify-content: center; width: 100%;">
+        <iframe 
+            src="https://api.wo-cloud.com/content/widget/v2/fallback.html?geoLat={LAT}&geoLon={LON}&geoType=coordinates&lang=sk&targetId=weather-radar-widget" 
+            width="100%" 
+            height="580" 
+            frameborder="0" 
+            scrolling="no"
+            style="border-radius: 14px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); border: 1px solid rgba(150, 150, 150, 0.25); max-width: 900px;"
+        ></iframe>
+    </div>
+    """
+  components.html(pocasie_radar_html, height=600)
 
 # --- ZÁLOŽKA: HISTÓRIA & REKORDY STANICE ---
 with tab_historia:
@@ -1174,7 +1182,7 @@ with tab_historia:
 
     st.markdown("---")
 
-    # --- 2. VÝBER OBDOBIA (VÝRAZNÝ, JEDNOTNÝ PANEL S OVLÁDANÍM VNÚTRI) ---
+    # --- 2. VÝBER OBDOBIA (VÝRAZNÝ HORIZONTÁLNY PANEL) ---
     min_d = df["DateTime"].min().date()
     max_d = df["DateTime"].max().date()
     df_filtered = df.copy()
