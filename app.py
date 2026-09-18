@@ -257,6 +257,16 @@ st.markdown(
     .alert-title { font-weight: bold; font-size: 1.05em; margin-bottom: 2px; }
     .alert-desc { font-size: 0.88em; opacity: 0.95; }
 
+    /* Rámik filtra nad grafmi */
+    .filter-box {
+        background-color: var(--secondary-background-color);
+        border: 1px solid rgba(150, 150, 150, 0.18);
+        border-radius: 12px;
+        padding: 14px 18px 6px 18px;
+        margin-bottom: 20px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.04);
+    }
+
     @media (max-width: 768px) {
         .weather-card { height: auto; margin-bottom: 15px; }
         .main-value, .main-value-tooltip { font-size: 1.4em; }
@@ -903,17 +913,18 @@ with tab_aktualne:
         else:
           temp_color = "#2980b9"
 
-        # Údaje pod sebou: 1. riadok percentá s kvapkou, 2. riadok milimetre
         if prob >= 20 or p_val_num > 0.0:
           rain_snippet = (
-              f"<div style='background: rgba(41,128,185,0.14); color: #2980b9; border-radius: 6px; padding: 3px 2px; margin-top: 4px;'>"
-              f"<div style='font-size: 0.68em; font-weight: 800; line-height: 1.1;'>💧 {prob}%</div>"
-              f"<div style='font-size: 0.62em; font-weight: 600; opacity: 0.85; margin-top: 1px;'>{p_val_num:.1f} mm</div>"
-              f"</div>"
+              f"<div style='background: rgba(41,128,185,0.14); color: #2980b9;"
+              " border-radius: 6px; padding: 3px 2px; margin-top: 4px;'><div"
+              " style='font-size: 0.68em; font-weight: 800; line-height:"
+              f" 1.1;'>💧 {prob}%</div><div style='font-size: 0.62em;"
+              " font-weight: 600; opacity: 0.85; margin-top: 1px;'>"
+              f" {p_val_num:.1f} mm</div></div>"
           )
         else:
           rain_snippet = (
-              f"<div style='font-size: 0.65em; opacity: 0.4; margin-top: 8px;'>💨"
+              "<div style='font-size: 0.65em; opacity: 0.4; margin-top: 8px;'>💨"
               f" {round(float(wind_spd))} km/h</div>"
           )
 
@@ -1018,86 +1029,6 @@ with tab_historia:
   df = load_data()
 
   if df is not None and not df.empty:
-    st.sidebar.header("⚙️ Ovládací panel (Filtre)")
-    volba = st.sidebar.radio(
-        "Vyberte spôsob zobrazenia:",
-        [
-            "1 - Posledných 7 dní",
-            "2 - Konkrétny rok",
-            "3 - Konkrétny mesiac a rok",
-            "4 - Vlastné obdobie (od - do)",
-        ],
-    )
-
-    min_d = df["DateTime"].min().date()
-    max_d = df["DateTime"].max().date()
-    df_filtered = df.copy()
-    df_prev = pd.DataFrame()
-
-    if "1" in volba:
-      datum_do = max_d
-      datum_od = max_d - datetime.timedelta(days=6)
-      df_filtered = df_filtered[
-          (df_filtered["DateTime"].dt.date >= datum_od)
-          & (df_filtered["DateTime"].dt.date <= datum_do)
-      ]
-      prev_datum_do = datum_od - datetime.timedelta(days=1)
-      prev_datum_od = prev_datum_do - datetime.timedelta(days=6)
-      df_prev = df[
-          (df["DateTime"].dt.date >= prev_datum_od)
-          & (df["DateTime"].dt.date <= prev_datum_do)
-      ]
-    elif "2" in volba:
-      dostupne_roky = sorted(df["DateTime"].dt.year.unique())
-      vybrany_rok = st.sidebar.selectbox("Vyberte rok", dostupne_roky)
-      df_filtered = df_filtered[df_filtered["DateTime"].dt.year == vybrany_rok]
-      df_prev = df[df["DateTime"].dt.year == vybrany_rok - 1]
-    elif "3" in volba:
-      dostupne_roky = sorted(df["DateTime"].dt.year.unique())
-      vybrany_rok = st.sidebar.selectbox("Vyberte rok", dostupne_roky)
-      vybrany_mesiac = st.sidebar.selectbox(
-          "Vyberte mesiac",
-          list(range(1, 13)),
-          format_func=lambda x: [
-              "Január",
-              "Február",
-              "Marec",
-              "Apríl",
-              "Máj",
-              "Jún",
-              "Júl",
-              "August",
-              "September",
-              "Október",
-              "November",
-              "December",
-          ][x - 1],
-      )
-      df_filtered = df_filtered[
-          (df_filtered["DateTime"].dt.year == vybrany_rok)
-          & (df_filtered["DateTime"].dt.month == vybrany_mesiac)
-      ]
-      prev_month = vybrany_mesiac - 1 if vybrany_mesiac > 1 else 12
-      prev_year = vybrany_rok if vybrany_mesiac > 1 else vybrany_rok - 1
-      df_prev = df[
-          (df["DateTime"].dt.year == prev_year)
-          & (df["DateTime"].dt.month == prev_month)
-      ]
-    elif "4" in volba:
-      datum_od = st.sidebar.date_input("Dátum od", min_d)
-      datum_do = st.sidebar.date_input("Dátum do", max_d)
-      df_filtered = df_filtered[
-          (df_filtered["DateTime"].dt.date >= datum_od)
-          & (df_filtered["DateTime"].dt.date <= datum_do)
-      ]
-      delta_dni = (datum_do - datum_od).days + 1
-      prev_datum_do = datum_od - datetime.timedelta(days=1)
-      prev_datum_od = prev_datum_do - datetime.timedelta(days=delta_dni - 1)
-      df_prev = df[
-          (df["DateTime"].dt.date >= prev_datum_od)
-          & (df["DateTime"].dt.date <= prev_datum_do)
-      ]
-
     t_max_col = next(
         (c for c in df.columns if "tepl" in c.lower() and "max" in c.lower()),
         None,
@@ -1203,7 +1134,110 @@ with tab_historia:
 
     st.markdown("---")
 
-    # --- 2. ŠTATISTIKY ZA OBDOBIE ---
+    # --- 2. VÝBER OBDOBIA PRIAMO NA STRÁNKE (NAD GRAFMI) ---
+    st.markdown(
+        """
+        <div class="filter-box">
+            <span style="font-weight: 800; font-size: 1.05em;">⚙️ Výber sledovaného obdobia:</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    min_d = df["DateTime"].min().date()
+    max_d = df["DateTime"].max().date()
+    df_filtered = df.copy()
+    df_prev = pd.DataFrame()
+
+    f_col1, f_col2, f_col3 = st.columns([2, 1, 1])
+
+    with f_col1:
+      volba = st.radio(
+          "Typ filtra:",
+          [
+              "Posledných 7 dní",
+              "Konkrétny mesiac a rok",
+              "Konkrétny rok",
+              "Vlastné obdobie",
+          ],
+          horizontal=True,
+          label_visibility="collapsed",
+      )
+
+    if volba == "Posledných 7 dní":
+      datum_do = max_d
+      datum_od = max_d - datetime.timedelta(days=6)
+      df_filtered = df_filtered[
+          (df_filtered["DateTime"].dt.date >= datum_od)
+          & (df_filtered["DateTime"].dt.date <= datum_do)
+      ]
+      prev_datum_do = datum_od - datetime.timedelta(days=1)
+      prev_datum_od = prev_datum_do - datetime.timedelta(days=6)
+      df_prev = df[
+          (df["DateTime"].dt.date >= prev_datum_od)
+          & (df["DateTime"].dt.date <= prev_datum_do)
+      ]
+
+    elif volba == "Konkrétny mesiac a rok":
+      dostupne_roky = sorted(df["DateTime"].dt.year.unique(), reverse=True)
+      with f_col2:
+        vybrany_rok = st.selectbox("Rok", dostupne_roky)
+      with f_col3:
+        vybrany_mesiac = st.selectbox(
+            "Mesiac",
+            list(range(1, 13)),
+            index=datetime.date.today().month - 1,
+            format_func=lambda x: [
+                "Január",
+                "Február",
+                "Marec",
+                "Apríl",
+                "Máj",
+                "Jún",
+                "Júl",
+                "August",
+                "September",
+                "Október",
+                "November",
+                "December",
+            ][x - 1],
+        )
+      df_filtered = df_filtered[
+          (df_filtered["DateTime"].dt.year == vybrany_rok)
+          & (df_filtered["DateTime"].dt.month == vybrany_mesiac)
+      ]
+      prev_month = vybrany_mesiac - 1 if vybrany_mesiac > 1 else 12
+      prev_year = vybrany_rok if vybrany_mesiac > 1 else vybrany_rok - 1
+      df_prev = df[
+          (df["DateTime"].dt.year == prev_year)
+          & (df["DateTime"].dt.month == prev_month)
+      ]
+
+    elif volba == "Konkrétny rok":
+      dostupne_roky = sorted(df["DateTime"].dt.year.unique(), reverse=True)
+      with f_col2:
+        vybrany_rok = st.selectbox("Rok", dostupne_roky)
+      df_filtered = df_filtered[df_filtered["DateTime"].dt.year == vybrany_rok]
+      df_prev = df[df["DateTime"].dt.year == vybrany_rok - 1]
+
+    elif volba == "Vlastné obdobie":
+      with f_col2:
+        datum_od = st.date_input("Od", min_d)
+      with f_col3:
+        datum_do = st.date_input("Do", max_d)
+      df_filtered = df_filtered[
+          (df_filtered["DateTime"].dt.date >= datum_od)
+          & (df_filtered["DateTime"].dt.date <= datum_do)
+      ]
+      delta_dni = (datum_do - datum_od).days + 1
+      prev_datum_do = datum_od - datetime.timedelta(days=1)
+      prev_datum_od = prev_datum_do - datetime.timedelta(days=delta_dni - 1)
+      df_prev = df[
+          (df["DateTime"].dt.date >= prev_datum_od)
+          & (df["DateTime"].dt.date <= prev_datum_do)
+      ]
+
+    # --- 3. ŠTATISTIKY ZA VYBRANÉ OBDOBIE ---
     st.subheader("📊 Štatistiky a vývoj za vybrané obdobie")
 
     if not df_filtered.empty:
@@ -1475,12 +1509,10 @@ with tab_historia:
             "12": "December",
         }
 
-        # Zistíme, ktoré mesiace sa nachádzajú v aktuálne vyfiltrovanom zobrazení
         mesiace_vo_filtri = (
             df_filtered["DateTime"].dt.strftime("%Y-%m").unique()
         )
 
-        # Pre celkový mesačný úhrn použijeme celú databázu (df) pre dané mesiace
         df_monthly_full = df[
             df["DateTime"].dt.strftime("%Y-%m").isin(mesiace_vo_filtri)
         ].copy()
