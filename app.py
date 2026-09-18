@@ -1456,7 +1456,7 @@ with tab_historia:
                 config=chart_config,
             )
 
-        # MESAČNÁ BILANCIA (Moderné vizuálne karty)
+        # MESAČNÁ BILANCIA (Celomesačný súhrn z celej histórie databázy)
         st.markdown("---")
         st.subheader("📅 Mesačná bilancia za vybrané obdobie")
 
@@ -1475,11 +1475,23 @@ with tab_historia:
             "12": "December",
         }
 
-        df_monthly = df_filtered.copy()
-        df_monthly["M_num"] = df_monthly["DateTime"].dt.strftime("%m")
-        df_monthly["Y_num"] = df_monthly["DateTime"].dt.strftime("%Y")
-        df_monthly["Mesiac_Kluc"] = (
-            df_monthly["Y_num"] + "-" + df_monthly["M_num"]
+        # Zistíme, ktoré mesiace sa nachádzajú v aktuálne vyfiltrovanom zobrazení
+        mesiace_vo_filtri = (
+            df_filtered["DateTime"].dt.strftime("%Y-%m").unique()
+        )
+
+        # Pre celkový mesačný úhrn použijeme celú databázu (df) pre dané mesiace
+        df_monthly_full = df[
+            df["DateTime"].dt.strftime("%Y-%m").isin(mesiace_vo_filtri)
+        ].copy()
+        df_monthly_full["M_num"] = df_monthly_full["DateTime"].dt.strftime(
+            "%m"
+        )
+        df_monthly_full["Y_num"] = df_monthly_full["DateTime"].dt.strftime(
+            "%Y"
+        )
+        df_monthly_full["Mesiac_Kluc"] = (
+            df_monthly_full["Y_num"] + "-" + df_monthly_full["M_num"]
         )
 
         agg_dict = {}
@@ -1494,9 +1506,9 @@ with tab_historia:
         if w_max_col:
           agg_dict["w_max"] = (w_max_col, "max")
 
-        if agg_dict:
+        if agg_dict and not df_monthly_full.empty:
           monthly_summary = (
-              df_monthly.groupby(
+              df_monthly_full.groupby(
                   ["Mesiac_Kluc", "Y_num", "M_num"], as_index=False
               )
               .agg(**agg_dict)
@@ -1526,7 +1538,7 @@ with tab_historia:
                             <div style="font-size: 1.25em; font-weight: 800; color: #f39c12; margin-top: 2px;">{row.get('t_avg', 0):.1f} °C</div>
                         </div>
                         <div style="background: rgba(41, 128, 185, 0.08); padding: 10px; border-radius: 8px; text-align: center; border-left: 3px solid #2980b9;">
-                            <div style="font-size: 0.75em; opacity: 0.8; font-weight: 600;">ÚHRN ZRÁŽOK</div>
+                            <div style="font-size: 0.75em; opacity: 0.8; font-weight: 600;">CELÝ MESIAC ZRÁŽKY</div>
                             <div style="font-size: 1.25em; font-weight: 800; color: #2980b9; margin-top: 2px;">{row.get('r_sum', 0):.1f} mm</div>
                         </div>
                         <div style="background: rgba(39, 174, 96, 0.08); padding: 10px; border-radius: 8px; text-align: center; border-left: 3px solid #27ae60;">
