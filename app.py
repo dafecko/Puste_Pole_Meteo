@@ -257,15 +257,17 @@ st.markdown(
     .alert-title { font-weight: bold; font-size: 1.05em; margin-bottom: 2px; }
     .alert-desc { font-size: 0.88em; opacity: 0.95; }
 
-    /* Rámik a štýly pre kompaktný panel filtra a štatistických kariet */
-    .filter-box {
-        background-color: var(--secondary-background-color);
-        border: 1px solid rgba(150, 150, 150, 0.18);
-        border-radius: 12px;
-        padding: 12px 18px;
-        margin-bottom: 18px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    /* Výrazný ovládací panel pre filter obdobia */
+    div[data-testid="stVerticalBlock"]:has(> div > [data-testid="stRadio"]) {
+        background: linear-gradient(180deg, rgba(52, 152, 219, 0.05) 0%, var(--secondary-background-color) 100%);
+        border: 1.5px solid rgba(52, 152, 219, 0.35);
+        border-left: 6px solid #2980b9;
+        border-radius: 14px;
+        padding: 14px 20px 10px 20px;
+        margin-bottom: 22px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
     }
+
     .stat-card {
         background-color: var(--secondary-background-color);
         border: 1px solid rgba(150, 150, 150, 0.18);
@@ -1172,7 +1174,7 @@ with tab_historia:
 
     st.markdown("---")
 
-    # --- 2. VÝBER OBDOBIA PRIAMO NA STRÁNKE (KOMPAKTNÝ PANEL) ---
+    # --- 2. VÝBER OBDOBIA (VÝRAZNÝ, JEDNOTNÝ PANEL S OVLÁDANÍM VNÚTRI) ---
     min_d = df["DateTime"].min().date()
     max_d = df["DateTime"].max().date()
     df_filtered = df.copy()
@@ -1181,14 +1183,16 @@ with tab_historia:
     with st.container():
       st.markdown(
           """
-            <div class="filter-box">
-                <div style="font-weight: 800; font-size: 0.9em; margin-bottom: 6px; opacity: 0.85;">⚙️ Sledované obdobie:</div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <span style="font-size: 1.15em;">🗓️</span>
+                <span style="font-weight: 800; font-size: 1.05em; letter-spacing: -0.3px;">Nastavenie zobrazeného obdobia</span>
+                <span style="font-size: 0.75em; opacity: 0.65; font-weight: 600; background: rgba(150,150,150,0.15); padding: 2px 8px; border-radius: 6px;">Filter dát</span>
             </div>
             """,
           unsafe_allow_html=True,
       )
 
-      f_col1, f_col2, f_col3 = st.columns([2.2, 1, 1])
+      f_col1, f_col2, f_col3 = st.columns([2.4, 1, 1])
 
       with f_col1:
         volba = st.radio(
