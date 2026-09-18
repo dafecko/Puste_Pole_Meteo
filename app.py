@@ -119,7 +119,7 @@ st.markdown(
         margin-top: 4px;
         font-weight: 500;
     }
-    
+
     /* Vertikálne stupnice */
     .bar-container {
         display: flex;
@@ -1007,16 +1007,11 @@ with tab_radar:
       " najbližšie hodiny."
   )
 
-  windy_iframe_code = f"""
-    <iframe 
-        width="100%" 
-        height="600" 
-        src="https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&metricWind=km%2Fh&zoom=9&overlay=rain&product=ecmwf&level=surface&lat={LAT}&lon={LON}&detailLat={LAT}&detailLon={LON}&marker=true" 
-        frameborder="0" 
-        style="border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"
-    ></iframe>
-    """
-  components.html(windy_iframe_code, height=620)
+  st.components.v1.iframe(
+      f"https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&metricWind=km%2Fh&zoom=9&overlay=rain&product=ecmwf&level=surface&lat={LAT}&lon={LON}&detailLat={LAT}&detailLon={LON}&marker=true",
+      height=620,
+      scrolling=False,
+  )
 
 # --- ZÁLOŽKA: HISTÓRIA & REKORDY STANICE ---
 with tab_historia:
