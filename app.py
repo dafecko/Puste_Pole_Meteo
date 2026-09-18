@@ -1050,32 +1050,18 @@ with tab_aktualne:
               unsafe_allow_html=True,
           )
 
-# --- ZÁLOŽKA: ŽIVÝ METEORADAR (POČASIE & RADAR OFICIÁLNY JS WIDGET) ---
+# --- ZÁLOŽKA: ŽIVÝ METEORADAR (VENTUSKY) ---
 with tab_radar:
-  st.subheader("📡 Meteoradar & Oblačnosť (Počasie & Radar)")
+  st.subheader("📡 Živý meteoradar & oblačnosť (Ventusky)")
   st.caption(
-      "Živý postup zrážok, búrok a oblačnosti s predpoveďou • Pusté Pole a"
-      " okolie"
+      "Reálny postup zrážok, bleskov a oblačnosti • Pusté Pole a okolie"
   )
 
-  pocasie_radar_code = f"""
-    <div style="display: flex; justify-content: center; width: 100%;">
-        <div id="weather-radar-widget" style="width: 100%; max-width: 900px; height: 580px; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.08); border: 1px solid rgba(150, 150, 150, 0.25);"></div>
-    </div>
-    <script type="text/javascript" src="https://api.wo-cloud.com/content/widget/v2/index.js"></script>
-    <script type="text/javascript">
-        _woWidget.push({{
-            target: "weather-radar-widget",
-            geoLat: {LAT},
-            geoLon: {LON},
-            geoType: "coordinates",
-            lang: "sk",
-            type: "radar",
-            showControls: true
-        }});
-    </script>
-    """
-  components.html(pocasie_radar_code, height=600)
+  st.components.v1.iframe(
+      f"https://www.ventusky.com/?p={LAT};{LON};8&l=radar",
+      height=640,
+      scrolling=False,
+  )
 
 # --- ZÁLOŽKA: HISTÓRIA & REKORDY STANICE ---
 with tab_historia:
