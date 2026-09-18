@@ -1050,15 +1050,16 @@ with tab_aktualne:
               unsafe_allow_html=True,
           )
 
-# --- ZÁLOŽKA: ŽIVÝ METEORADAR (VENTUSKY) ---
+# --- ZÁLOŽKA: ŽIVÝ METEORADAR (WINDY - REÁLNY RADAR S BLESKAMI A ŠPENDLÍKOM) ---
 with tab_radar:
-  st.subheader("📡 Živý meteoradar & oblačnosť (Ventusky)")
+  st.subheader("📡 Živý meteoradar & blesky (Windy Radar)")
   st.caption(
-      "Reálny postup zrážok, bleskov a oblačnosti • Pusté Pole a okolie"
+      "Reálny radarový odraz zrážok, bleskov a búrok v čase • Špendlík označuje"
+      " Pusté Pole"
   )
 
   st.components.v1.iframe(
-      f"https://www.ventusky.com/?p={LAT};{LON};8&l=radar",
+      f"https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=%C2%B0C&metricWind=km%2Fh&zoom=9&overlay=radar&product=radar&level=surface&lat={LAT}&lon={LON}&detailLat={LAT}&detailLon={LON}&marker=true",
       height=640,
       scrolling=False,
   )
